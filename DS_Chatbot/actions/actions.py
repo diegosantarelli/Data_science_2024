@@ -80,7 +80,7 @@ class ActionFetchTeamDetails(Action):
             teams = cached_data
         else:
             # Effettua la richiesta all'API
-            API_TOKEN = "728961a145e54aa18538db538fe9d634"
+            API_TOKEN = "123e4e24e9544052867f013ded06279d"
             TEAM_API_URL = "https://api.football-data.org/v4/teams"
             headers = {"X-Auth-Token": API_TOKEN}
 
