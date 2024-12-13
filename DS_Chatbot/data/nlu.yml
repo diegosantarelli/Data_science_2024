@@ -94,3 +94,18 @@ nlu:
   examples: |
     - Quali sono le competizioni disponibili?
     - Puoi dirmi i campionati di calcio?
+    - Puoi elencarmi i campionati?
+
+- intent: ask_team_details
+  examples: |
+    - Dimmi qualcosa sulla squadra [Milan](team_name)
+    - Voglio sapere di più sul [Napoli](team_name)
+    - Quali sono i dettagli della squadra [Juventus](team_name)?
+
+- intent: ask_live_scores
+  examples: |
+    - Quali partite sono in corso?
+    - Mostrami i risultati live
+    - Cosa stanno giocando ora?
+    - Quali sono i punteggi delle partite in corso?
+

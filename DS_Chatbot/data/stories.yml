@@ -28,3 +28,10 @@ stories:
   - action: utter_did_that_help
   - intent: deny
   - action: utter_goodbye
+
+
+- story: Utente chiede risultati live
+  steps:
+    - intent: ask_live_scores
+    - action: action_fetch_live_scores
+

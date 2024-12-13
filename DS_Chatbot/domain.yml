@@ -8,6 +8,9 @@ intents:
   - mood_great
   - mood_unhappy
   - bot_challenge
+  - ask_competitions
+  - ask_team_details
+  - ask_live_scores
 
 responses:
   utter_greet:
@@ -29,9 +32,34 @@ responses:
   utter_iamabot:
   - text: "I am a bot, powered by Rasa."
 
+  utter_no_live_scores:
+  - text: "Non ci sono partite in corso al momento. Riprovare più tardi!"
+
+  utter_ask_team_name:
+  - text: "Non ho capito di quale squadra vuoi sapere di più. Puoi riprovare specificando il nome?"
+
+
+
 session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true
 
 actions:
   - action_fetch_competitions
+  - action_fetch_team_details
+  - action_fetch_live_scores
+  
+slots:
+  team_name:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: team_name
+
+entities:
+  - team_name
+
+
+
+
+  
