@@ -1,35 +1,26 @@
-# This files contains your custom actions which can be used to run
-# custom Python code.
-#
-# See this guide on how to implement these action:
-# https://rasa.com/docs/rasa/custom-actions
-
-
-# This is a simple example for a custom action which utters "Hello World!"
-
-# from typing import Any, Text, Dict, List
-#
-# from rasa_sdk import Action, Tracker
-# from rasa_sdk.executor import CollectingDispatcher
-#
-#
-# class ActionHelloWorld(Action):
-#
-#     def name(self) -> Text:
-#         return "action_hello_world"
-#
-#     def run(self, dispatcher: CollectingDispatcher,
-#             tracker: Tracker,
-#             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-#
-#         dispatcher.utter_message(text="Hello World!")
-#
-#         return []
-
 import requests
+import json
+import os
 from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
+
+
+# Percorso del file per la cache
+CACHE_FILE_TEAMS = "teams_cache.json"
+CACHE_FILE_COMPETITIONS = "competitions_cache.json"
+
+# Funzione per salvare i dati nella cache
+def save_to_cache(data, file_path):
+    with open(file_path, "w") as f:
+        json.dump(data, f)
+
+# Funzione per caricare i dati dalla cache
+def load_from_cache(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            return json.load(f)
+    return None
 
 
 class ActionFetchCompetitions(Action):
@@ -39,33 +30,34 @@ class ActionFetchCompetitions(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        # Token personale
-        API_TOKEN = "728961a145e54aa18538db538fe9d634"
-        BASE_URL = "https://api.football-data.org/v4"
-        endpoint = "/competitions"
+        # Prova a caricare i dati dalla cache
+        cached_data = load_from_cache(CACHE_FILE_COMPETITIONS)
 
-        # Effettua la richiesta
-        url = f"{BASE_URL}{endpoint}"
-        headers = {"X-Auth-Token": API_TOKEN}
-
-        response = requests.get(url, headers=headers)
-
-        if response.status_code == 200:
-            data = response.json()
-            competitions = [comp['name'] for comp in data['competitions']]
-            message = "Ecco tutte le competizioni disponibili:\n" + "\n".join(competitions)
+        if cached_data:
+            # Usa i dati dalla cache
+            competitions = cached_data
+            message = "Ecco tutte le competizioni disponibili (dalla cache):\n" + "\n".join(competitions)
         else:
-            message = f"Errore nel recuperare i dati: {response.status_code}"
+            # Effettua la richiesta se non ci sono dati in cache
+            API_TOKEN = "728961a145e54aa18538db538fe9d634"
+            BASE_URL = "https://api.football-data.org/v4"
+            endpoint = "/competitions"
 
-        # Invia la risposta al chatbot
+            url = f"{BASE_URL}{endpoint}"
+            headers = {"X-Auth-Token": API_TOKEN}
+
+            response = requests.get(url, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                competitions = [comp['name'] for comp in data['competitions']]
+                save_to_cache(competitions, CACHE_FILE_COMPETITIONS)
+                message = "Ecco tutte le competizioni disponibili:\n" + "\n".join(competitions)
+            else:
+                message = f"Errore nel recuperare i dati: {response.status_code}"
+
         dispatcher.utter_message(text=message)
         return []
-    
-
-import requests
-from typing import Any, Text, Dict, List
-from rasa_sdk import Action
-from rasa_sdk.executor import CollectingDispatcher
 
 
 class ActionFetchTeamDetails(Action):
@@ -74,27 +66,28 @@ class ActionFetchTeamDetails(Action):
 
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         team_name = tracker.get_slot("team_name")
-        print(f"Team name estratto dallo slot: {team_name}")
 
         if not team_name:
             dispatcher.utter_message(text="Non ho capito di quale squadra vuoi informazioni. Puoi specificare meglio?")
             return []
 
-        # Normalizza il nome della squadra per la ricerca
         team_name_normalized = team_name.strip().lower()
-        print(f"Richiesta per la squadra: {team_name_normalized}")
 
-        API_TOKEN = "728961a145e54aa18538db538fe9d634"
-        TEAM_API_URL = "https://api.football-data.org/v4/teams"
-        headers = {"X-Auth-Token": API_TOKEN}
+        # Prova a caricare i dati dalla cache
+        cached_data = load_from_cache(CACHE_FILE_TEAMS)
 
-        teams = []
-        offset = 0
-        limit = 100  # Limite massimo gestito dall'API
-        total_teams = None
+        if cached_data:
+            teams = cached_data
+        else:
+            # Effettua la richiesta all'API
+            API_TOKEN = "728961a145e54aa18538db538fe9d634"
+            TEAM_API_URL = "https://api.football-data.org/v4/teams"
+            headers = {"X-Auth-Token": API_TOKEN}
 
-        try:
-            # Recupera tutte le squadre tramite paginazione
+            teams = []
+            offset = 0
+            limit = 100
+
             while True:
                 params = {"offset": offset, "limit": limit}
                 response = requests.get(TEAM_API_URL, headers=headers, params=params)
@@ -105,46 +98,34 @@ class ActionFetchTeamDetails(Action):
 
                 data = response.json()
 
-                if total_teams is None and 'count' in data:
-                    total_teams = data['count']
-
                 if 'teams' in data:
                     teams.extend(data['teams'])
 
-                print(f"Squadre recuperate finora: {len(teams)} / {total_teams if total_teams else 'sconosciuto'}")
-
-                # Verifica se ci sono altre pagine di dati
                 if len(data.get('teams', [])) < limit:
-                    break  # Ultima pagina, nessun'altra richiesta necessaria
+                    break
 
                 offset += limit
 
-            print(f"Risultato finale: {len(teams)} squadre trovate.")
+            # Salva i dati nella cache
+            save_to_cache(teams, CACHE_FILE_TEAMS)
 
-            # Cerca le informazioni sulla squadra richiesta
-            team_info = next((team for team in teams if team['name'].strip().lower() == team_name_normalized), None)
+        # Cerca le informazioni sulla squadra richiesta
+        team_info = next((team for team in teams if team['name'].strip().lower() == team_name_normalized), None)
 
-            if team_info:
-                message = (
-                    f"Ecco le informazioni sulla squadra {team_info['name']}:\n"
-                    f"- Nome: {team_info['name']}\n"
-                    f"- Stadio: {team_info.get('venue', 'N/A')}\n"
-                    f"- Sito web: {team_info.get('website', 'N/A')}\n"
-                    f"- Data di fondazione: {team_info.get('founded', 'N/A')}\n"
-                    f"- Colore della maglia: {team_info.get('clubColors', 'N/A')}\n"
-                )
-                # Log di debug per verificare i dati della squadra
-                print(f"Dettagli squadra trovata: {team_info}")
-            else:
-                message = f"Non ho trovato informazioni su '{team_name}'. Verifica il nome e riprova."
-
-        except Exception as e:
-            message = f"Errore durante il recupero delle informazioni: {str(e)}"
-            print(f"Eccezione catturata: {str(e)}")
+        if team_info:
+            message = (
+                f"Ecco le informazioni sulla squadra {team_info['name']}:\n"
+                f"- Nome: {team_info['name']}\n"
+                f"- Stadio: {team_info.get('venue', 'N/A')}\n"
+                f"- Sito web: {team_info.get('website', 'N/A')}\n"
+                f"- Data di fondazione: {team_info.get('founded', 'N/A')}\n"
+                f"- Colore della maglia: {team_info.get('clubColors', 'N/A')}\n"
+            )
+        else:
+            message = f"Non ho trovato informazioni su '{team_name}'. Verifica il nome e riprova."
 
         dispatcher.utter_message(text=message)
         return []
-
 
 
 class ActionFetchLiveScores(Action):
@@ -179,4 +160,3 @@ class ActionFetchLiveScores(Action):
 
         dispatcher.utter_message(text=message)
         return []
-
