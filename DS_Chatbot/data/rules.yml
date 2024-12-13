@@ -11,3 +11,9 @@ rules:
   steps:
   - intent: bot_challenge
   - action: utter_iamabot
+
+- rule: Rispondi alle domande sulle competizioni
+  steps:
+    - intent: ask_competitions
+    - action: action_fetch_competitions
+
