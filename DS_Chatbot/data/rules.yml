@@ -17,11 +17,6 @@ rules:
     - intent: ask_competitions
     - action: action_fetch_competitions
 
-- rule: Dettagli squadra
-  steps:
-    - intent: ask_team_details
-    - action: action_fetch_team_details
-
 
 
 

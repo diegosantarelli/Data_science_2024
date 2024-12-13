@@ -98,9 +98,12 @@ nlu:
 
 - intent: ask_team_details
   examples: |
-    - Dimmi qualcosa sulla squadra [Milan](team_name)
-    - Voglio sapere di più sul [Napoli](team_name)
-    - Quali sono i dettagli della squadra [Juventus](team_name)?
+    - Dimmi qualcosa su [Juventus FC](team_name)
+    - Voglio sapere di più su [FC Barcelona](team_name)
+    - Parlami di [Chelsea FC](team_name)
+    - Chi gioca nel [Real Madrid](team_name)?
+    - Qual è lo stadio del [Bayern Monaco](team_name)?
+
 
 - intent: ask_live_scores
   examples: |

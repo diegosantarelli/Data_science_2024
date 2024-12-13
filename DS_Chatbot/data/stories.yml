@@ -35,3 +35,9 @@ stories:
     - intent: ask_live_scores
     - action: action_fetch_live_scores
 
+
+- story: richiedi dettagli squadra
+  steps:
+    - intent: ask_team_details
+    - action: action_fetch_team_details
+
