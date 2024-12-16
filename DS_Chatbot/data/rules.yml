@@ -2,12 +2,23 @@ version: "3.1"
 
 rules:
 
-- rule: Say goodbye anytime the user says goodbye
+- rule: Rispondi al meteo se slot impostati
+  condition:
+    - slot_was_set:
+        - gp
+        - year
   steps:
-  - intent: goodbye
-  - action: utter_goodbye
+    - intent: ask_weather_info
+    - action: action_get_weather_info
 
-- rule: Say 'I am a bot' anytime the user challenges
+- rule: Chiedi i dettagli mancanti per il meteo
   steps:
-  - intent: bot_challenge
-  - action: utter_iamabot
+    - intent: ask_weather_info
+    - action: action_extract_slots
+    - active_loop: null
+    - slot_was_set:
+        - gp: null
+    - action: utter_ask_gp
+    - slot_was_set:
+        - year: null
+    - action: utter_ask_year
