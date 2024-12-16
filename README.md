@@ -14,10 +14,16 @@ conda activate ChatBot
 rasa train
 ```
 
-# Per parlare con il chatbot:
+# Runnare le actions
 
 ```bash
-rasa shell
+rasa run actions
+```
+
+# Per parlare con il chatbot (porta 5006):
+
+```bash
+rasa shell --port 5006
 ```
 
 # Con un chatbot per il calcio, puoi implementare una vasta gamma di funzionalità basate sull'analisi e sulla presentazione di dati calcistici. Ecco una panoramica delle possibili analisi, organizzata per categoria:
