@@ -10,15 +10,3 @@ rules:
   steps:
     - intent: ask_weather_info
     - action: action_get_weather_info
-
-- rule: Chiedi i dettagli mancanti per il meteo
-  steps:
-    - intent: ask_weather_info
-    - action: action_extract_slots
-    - active_loop: null
-    - slot_was_set:
-        - gp: null
-    - action: utter_ask_gp
-    - slot_was_set:
-        - year: null
-    - action: utter_ask_year

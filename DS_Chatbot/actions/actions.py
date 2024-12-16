@@ -26,9 +26,11 @@
 #
 #         return []
 
+import fastf1
+from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
-import fastf1
+from rasa_sdk.events import SlotSet
 
 class ActionGetEventInfo(Action):
 
@@ -196,4 +198,59 @@ class ActionGetFastestLap(Action):
             )
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero del giro più veloce: {str(e)}")
+        return []
+
+
+from rasa_sdk import Action, Tracker
+from rasa_sdk.executor import CollectingDispatcher
+import fastf1
+
+class ActionGetCircuitInfo(Action):
+    def name(self) -> str:
+        return "action_get_circuit_info"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker,
+            domain: dict) -> list:
+        # Recupera lo slot GP
+        gp = tracker.get_slot("gp")
+        year = 2023  # Specifica un anno (può essere dinamico)
+
+        if not gp:
+            dispatcher.utter_message(text="Per quale GP vuoi informazioni sul circuito?")
+            return []
+
+        try:
+            # Carica la sessione del GP
+            session = fastf1.get_session(year, gp, "R")  # Sessione di gara
+            session.load()
+
+            # Recupera informazioni sul circuito
+            circuit_info = session.get_circuit_info()
+
+            if not circuit_info:
+                response = f"Non ho trovato informazioni sul circuito del GP di {gp}."
+            else:
+                # Estrai dati
+                corners = circuit_info.corners  # DataFrame delle curve
+                marshal_lights = circuit_info.marshal_lights  # DataFrame delle luci
+                marshal_sectors = circuit_info.marshal_sectors  # DataFrame dei settori
+                rotation = circuit_info.rotation  # Rotazione del circuito
+
+                # Dettagli principali
+                num_corners = len(corners) if corners is not None else "Non disponibile"
+                num_lights = len(marshal_lights) if marshal_lights is not None else "Non disponibile"
+                num_sectors = len(marshal_sectors) if marshal_sectors is not None else "Non disponibile"
+
+                # Formatta la risposta
+                response = (
+                    f"Il circuito del GP di {gp} ha un totale di {num_corners} curve, "
+                    f"{num_lights} luci dei marshal e {num_sectors} settori dei marshal. "
+                    f"La rotazione del circuito è di {rotation:.2f} gradi."
+                )
+
+        except Exception as e:
+            response = f"Errore nel recupero delle informazioni sul circuito: {str(e)}"
+
+        dispatcher.utter_message(text=response)
         return []

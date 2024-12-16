@@ -29,18 +29,14 @@ stories:
   - intent: deny
   - action: utter_goodbye
 
-
 - story: get_event_details
   steps:
   - intent: ask_event_info
   - action: action_get_event_info
 
-
 - story: informazioni sul circuito
   steps:
   - intent: ask_circuit_info
-  - action: utter_ask_gp
-  - action: utter_ask_year
   - action: action_get_circuit_info
 
 - story: programma del GP
@@ -72,6 +68,13 @@ stories:
   - action: utter_ask_driver
   - action: action_get_fastest_lap
 
+- story: meteo del GP
+  steps:
+  - intent: ask_weather_info
+  - action: utter_ask_gp
+  - action: utter_ask_year
+  - action: action_get_weather_info
+
 - story: meteo del GP con slot impostati
   steps:
   - intent: ask_weather_info
@@ -79,29 +82,3 @@ stories:
       - gp
       - year
   - action: action_get_weather_info
-
-- story: meteo del GP con GP mancante
-  steps:
-  - intent: ask_weather_info
-  - slot_was_set:
-      - year
-  - action: utter_ask_gp
-  - action: action_get_weather_info
-
-- story: meteo del GP con anno mancante
-  steps:
-  - intent: ask_weather_info
-  - slot_was_set:
-      - gp
-  - action: utter_ask_year
-  - action: action_get_weather_info
-
-- story: meteo del GP con entrambi mancanti
-  steps:
-  - intent: ask_weather_info
-  - action: utter_ask_gp
-  - action: utter_ask_year
-  - action: action_get_weather_info
-
-
-

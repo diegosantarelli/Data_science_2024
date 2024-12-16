@@ -23,6 +23,8 @@ actions:
   - action_get_race_winner
   - action_get_weather_info
   - action_get_fastest_lap
+  - action_ask_missing_gp
+  - action_ask_missing_year
 
 
 responses:
@@ -33,7 +35,7 @@ responses:
   - text: "A presto! Buona giornata."
 
   utter_iamabot:
-  - text: "Sono un bot creato per aiutarti con le informazioni di Formula 1."
+  - text: "Sono un bot creato per aiutarti con le informazioni della Formula 1."
 
   utter_happy:
   - text: "Fantastico! Sono felice di aiutarti."
@@ -56,7 +58,6 @@ responses:
   utter_ask_year:
   - text: "Quale anno ti interessa?"
 
-
 entities:
   - gp
   - year
@@ -65,17 +66,23 @@ entities:
 slots:
   gp:
     type: text
+    influence_conversation: true
     mappings:
       - type: from_entity
         entity: gp
   year:
     type: text
+    influence_conversation: true
     mappings:
       - type: from_entity
         entity: year
   driver:
     type: text
+    influence_conversation: true
     mappings:
       - type: from_entity
         entity: driver
+
+
+
 
