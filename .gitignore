@@ -1,3 +1,25 @@
 disasetr_declaration
 DS_NLP1/0.26.0'
 DS_NLP1/0.26.0
+
+# Cartelle di sistema locali
+.idea/
+*.iml
+
+# Cache di Rasa
+.rasa/cache/
+cache.db
+
+# File temporanei
+*.pkl
+*.json
+tmp*/
+checkpoint
+
+# File compressi
+*.tar.gz
+
+# Ambiente virtuale
+.env/
+.venv/
+__pycache__/
