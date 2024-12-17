@@ -2,42 +2,30 @@ version: "3.1"
 
 stories:
 
-- story: happy path
+- story: Saluto iniziale
   steps:
   - intent: greet
   - action: utter_greet
-  - intent: mood_great
-  - action: utter_happy
 
-- story: sad path 1
+- story: Risposta alla bot challenge
   steps:
-  - intent: greet
-  - action: utter_greet
-  - intent: mood_unhappy
-  - action: utter_cheer_up
-  - action: utter_did_that_help
-  - intent: affirm
-  - action: utter_happy
+  - intent: bot_challenge
+  - action: utter_bot_challenge
 
-- story: sad path 2
+- story: Saluto finale
   steps:
-  - intent: greet
-  - action: utter_greet
-  - intent: mood_unhappy
-  - action: utter_cheer_up
-  - action: utter_did_that_help
-  - intent: deny
+  - intent: goodbye
   - action: utter_goodbye
-
-- story: get_event_details
-  steps:
-  - intent: ask_event_info
-  - action: action_get_event_info
 
 - story: informazioni sul circuito
   steps:
   - intent: ask_circuit_info
   - action: action_get_circuit_info
+
+- story: get_event_details
+  steps:
+  - intent: ask_event_info
+  - action: action_get_event_info
 
 - story: programma del GP
   steps:
@@ -52,13 +40,6 @@ stories:
   - action: utter_ask_gp
   - action: utter_ask_year
   - action: action_get_race_winner
-
-- story: meteo del GP
-  steps:
-  - intent: ask_weather_info
-  - action: utter_ask_gp
-  - action: utter_ask_year
-  - action: action_get_weather_info
 
 - story: giro veloce del pilota
   steps:

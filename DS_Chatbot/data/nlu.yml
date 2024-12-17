@@ -1,17 +1,31 @@
 version: "3.1"
 
 nlu:
+
 - intent: greet
   examples: |
     - Ciao
     - Buongiorno
     - Ehi
 
+- intent: bot_challenge
+  examples: |
+    - Sei un bot?
+    - Chi sei?
+    - Sei umano?
+
+- intent: goodbye
+  examples: |
+    - Ciao ciao
+    - Arrivederci
+    - A presto
+
 - intent: ask_circuit_info
   examples: |
-    - Dimmi le informazioni del circuito di [Monza](gp)
-    - Quali sono le caratteristiche del circuito di [Silverstone](gp)?
-    - Vorrei sapere del circuito di [Imola](gp).
+    - Dammi le informazioni del circuito di [Autodromo Nazionale Di Monza](gp)
+    - Dammi le informazioni del circuito di [Marina Bay Street Circuit](gp)
+    - Quali sono le caratteristiche del circuito di [Silverstone Circuit](gp)?
+    - Vorrei sapere delle informazioni sul circuito di [Bahrain International Circuit](gp).
 
 - intent: ask_event_schedule
   examples: |
@@ -43,32 +57,12 @@ nlu:
     - Dimmi qualcosa sul GP di [Imola](gp) nel [2023](year)
     - Voglio sapere i dettagli del GP di [Silverstone](gp)
 
-- intent: ask_fastest_lap
-  examples: |
-    - Qual è stato il giro più veloce di [Leclerc](driver) nel GP di [Monza](gp) nel [2022](year)?
-    - Chi ha fatto il miglior giro a [Imola](gp) nel [2021](year)?
 
 - intent: ask_circuit_info
   examples: |
     - Dimmi le caratteristiche del circuito di [Monza](gp)
     - Quali sono i dettagli del circuito di [Silverstone](gp)?
 
-- intent: ask_event_schedule
-  examples: |
-    - Qual è il programma del GP di [Monza](gp) nel [2023](year)?
-    - Quando si svolgono le sessioni del GP di [Imola](gp)?
-
-- intent: greet
-  examples: |
-    - Ciao
-    - Buongiorno
-    - Ehi
-
-- intent: bot_challenge
-  examples: |
-    - Sei un bot?
-    - Chi sei?
-    - Sei umano?
 
 
 

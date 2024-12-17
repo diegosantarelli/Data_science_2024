@@ -2,12 +2,8 @@ version: "3.1"
 
 intents:
   - greet
-  - goodbye
-  - affirm
-  - deny
-  - mood_great
-  - mood_unhappy
   - bot_challenge
+  - goodbye
   - ask_event_info
   - ask_circuit_info
   - ask_event_schedule
@@ -28,26 +24,24 @@ actions:
 
 
 responses:
+
   utter_greet:
-  - text: "Ciao! Come posso aiutarti oggi?"
+    - text: "Ciao! Come posso aiutarti con le informazioni sulla Formula 1? 😊"
+    - text: "Buongiorno! Chiedimi qualcosa sulla Formula 1! 😊"
+    - text: "Ehi! Posso esserti utile per le informazioni sulla Formula 1? 😊"
+
+  utter_bot_challenge:
+    - text: "Sono un assistente virtuale per aiutarti con le info sulla Formula 1! 🤖🏎️"
+    - text: "Sono un bot con molte informazioni sulla Formula 1 pronte per te! 🤖🏎️"
 
   utter_goodbye:
-  - text: "A presto! Buona giornata."
+    - text: "Arrivederci! A presto! 👋"
+    - text: "Ciao! Torna presto se hai bisogno. 😊"
+    - text: "Alla prossima! 👋"
 
-  utter_iamabot:
-  - text: "Sono un bot creato per aiutarti con le informazioni della Formula 1."
-
-  utter_happy:
-  - text: "Fantastico! Sono felice di aiutarti."
-
-  utter_cheer_up:
-  - text: "Non ti preoccupare, vedrai che andrà meglio. Vuoi sapere qualcosa sulla Formula 1?"
-
-  utter_did_that_help:
-  - text: "Spero di averti aiutato. Vuoi altre informazioni?"
-
-  utter_error:
-  - text: "Mi dispiace, non sono riuscito a trovare le informazioni richieste."
+  utter_circuit_info:
+    - text: "Ecco alcune informazioni sul circuito di {gp}:"
+    - text: "Parliamo del circuito di {gp}, dammi un secondo..."
 
   utter_ask_driver:
   - text: "Per quale pilota vuoi sapere le informazioni?"
@@ -57,6 +51,7 @@ responses:
 
   utter_ask_year:
   - text: "Quale anno ti interessa?"
+
 
 entities:
   - gp
