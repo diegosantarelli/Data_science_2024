@@ -31,10 +31,15 @@ nlu:
     - Qual è il programma del GP di [Azerbaijan Grand Prix](gp) nel [2023](year)?
     - Dammi il programma delle sessioni del GP di [Dutch Grand Prix](gp).
 
+
+
+
+
+
 - intent: ask_race_winner
   examples: |
-    - Chi ha vinto il GP di [Monza](gp) nel [2022](year)?
-    - Chi è stato il vincitore del GP di [Imola](gp)?
+    - Chi ha vinto il GP di [Italian Grand Prix](gp) nel [2022](year)?
+    - Chi è stato il vincitore del GP di [Azerbaijan Grand Prix](gp)?
 
 - intent: ask_weather_info
   examples: |
@@ -50,11 +55,16 @@ nlu:
     - Qual è stato il giro più veloce di [Verstappen](driver) nel GP di [Monza](gp) nel [2022](year)?
     - Chi ha fatto il giro più veloce a [Imola](gp) nel [2021](year)?
 
-- intent: ask_event_info
+- intent: inform
   examples: |
-    - Vorrei informazioni sul GP di [Monza](gp)
-    - Dimmi qualcosa sul GP di [Imola](gp) nel [2023](year)
-    - Voglio sapere i dettagli del GP di [Silverstone](gp)
+    - 2023
+    - 2022
+    - 2021
+    - Azerbaijan Grand Prix
+    - Monza
+    - Monaco
+    - [Azerbaijan Grand Prix](gp)
+    - [2023](year)
 
 
 

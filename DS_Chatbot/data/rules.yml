@@ -2,5 +2,15 @@ version: "3.1"
 
 rules:
 
+- rule: Risposta diretta al vincitore
+  condition:
+  # La rule si applica solo quando entrambi gli slot sono impostati
+  - slot_was_set:
+    - gp: any
+    - year: any
+  steps:
+  - intent: ask_race_winner
+  - action: action_get_race_winner
+
 
 

@@ -10,6 +10,7 @@ intents:
   - ask_race_winner
   - ask_weather_info
   - ask_fastest_lap
+  - inform
 
 
 actions:
