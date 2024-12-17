@@ -1,8 +1,12 @@
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from fastf1.ergast import Ergast
+from fuzzywuzzy import process
 
-
+from rasa_sdk import Action, Tracker
+from rasa_sdk.executor import CollectingDispatcher
+from fastf1.ergast import Ergast
+from fuzzywuzzy import process
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -20,40 +24,35 @@ class ActionGetCircuitInfo(Action):
             return []
 
         try:
-            # Inizializza l'interfaccia Ergast per ottenere la lista dei circuiti
+            # Inizializza Ergast e ottieni la lista dei circuiti
             ergast = Ergast(result_type="pandas")
             circuits_df = ergast.get_circuits(season=year)
 
-            # Controlliamo se i risultati esistono
+            # Controllo che ci siano dati
             if circuits_df.empty:
                 dispatcher.utter_message(text="Non ho trovato alcun circuito per la stagione specificata.")
                 return []
 
-            # Normalizza i nomi per cercare in modo insensibile a maiuscole/minuscole
-            circuits_df["circuitName_lower"] = circuits_df["circuitName"].str.lower()
-            circuit_name_lower = circuit_name.lower()
+            # Applica fuzzy matching per individuare il circuito corretto
+            circuit_names = circuits_df["circuitName"].tolist()
+            best_match, score = process.extractOne(circuit_name, circuit_names)
 
-            # Filtra il DataFrame per trovare il circuito desiderato
-            filtered_circuit = circuits_df[circuits_df["circuitName_lower"] == circuit_name_lower]
-
-            # Se non ci sono risultati, restituisci un messaggio all'utente
-            if filtered_circuit.empty:
-                valid_circuits = circuits_df["circuitName"].tolist()
+            # Verifica la similarità del risultato
+            if score < 80:  # Soglia di similarità
                 dispatcher.utter_message(
                     text=f"Non ho trovato il circuito '{circuit_name}'. "
-                         f"Prova con uno di questi: {', '.join(valid_circuits)}."
+                         f"Prova con uno di questi: {', '.join(circuit_names)}."
                 )
                 return []
 
-            # Estrai informazioni sul circuito
-            circuit = filtered_circuit.iloc[0]
+            # Recupera il circuito corrispondente
+            circuit = circuits_df[circuits_df["circuitName"] == best_match].iloc[0]
             response = (
                 f"Il circuito '{circuit['circuitName']}' si trova a {circuit['locality']}, {circuit['country']}.\n"
                 f"Coordinate: latitudine {circuit['lat']}, longitudine {circuit['long']}."
             )
 
         except Exception as e:
-            # Gestione errore generico
             dispatcher.utter_message(
                 text="Si è verificato un errore nel recupero delle informazioni. Riprova più tardi."
             )
@@ -62,6 +61,9 @@ class ActionGetCircuitInfo(Action):
 
         dispatcher.utter_message(text=response)
         return []
+
+
+
 
 class ActionGetEventInfo(Action):
 
