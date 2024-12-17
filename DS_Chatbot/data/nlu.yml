@@ -23,14 +23,13 @@ nlu:
 - intent: ask_circuit_info
   examples: |
     - Dammi le informazioni del circuito di [Autodromo Nazionale Di Monza](gp)
-    - Dammi le informazioni del circuito di [Marina Bay Street Circuit](gp)
     - Quali sono le caratteristiche del circuito di [Silverstone Circuit](gp)?
     - Vorrei sapere delle informazioni sul circuito di [Bahrain International Circuit](gp).
 
 - intent: ask_event_schedule
   examples: |
-    - Qual è il programma del GP di [Imola](gp) nel [2023](year)?
-    - Dammi il programma delle sessioni del GP di [Monza](gp).
+    - Qual è il programma del GP di [Azerbaijan Grand Prix](gp) nel [2023](year)?
+    - Dammi il programma delle sessioni del GP di [Dutch Grand Prix](gp).
 
 - intent: ask_race_winner
   examples: |

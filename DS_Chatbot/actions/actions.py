@@ -115,14 +115,78 @@ class ActionGetEventSchedule(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        gp = tracker.get_slot("gp")
-        year = tracker.get_slot("year")
+        # Extract entities from the latest message
+        latest_message = tracker.latest_message
+        text = latest_message.get('text', '').lower()
+        entities = latest_message.get('entities', [])
+        
+        print("\n=== DEBUG INFO ===")
+        print(f"Text: {text}")
+        print(f"Entities: {entities}")
+        
+        # Get GP and year from entities
+        gp = None
+        year = None
+        
+        # Estrai GP e year dalle entities
+        for entity in entities:
+            if entity['entity'] == 'gp':
+                gp = entity['value']
+            elif entity['entity'] == 'year':
+                year = entity['value']
+                
+        print(f"After entities extraction - GP: {gp}, Year: {year}")
+            
+        # Se non sono stati trovati nelle entities, prova a estrarli dal testo
+        if not gp and ('gp di' in text or 'gran premio di' in text):
+            text_parts = text.split('gp di' if 'gp di' in text else 'gran premio di')
+            if len(text_parts) > 1:
+                gp = text_parts[1].split('nel')[0].strip()
+        
+        if not year and 'nel' in text:
+            year_part = text.split('nel')[1].strip()
+            try:
+                year = year_part[:4]  # prendi i primi 4 caratteri che dovrebbero essere l'anno
+            except:
+                year = None
 
-        if not gp or not year:
-            dispatcher.utter_message(text="Per favore specifica il GP e l'anno.")
+        print(f"After text extraction - GP: {gp}, Year: {year}")
+        print(f"Current slots - GP: {tracker.get_slot('gp')}, Year: {tracker.get_slot('year')}")
+        print("=== END DEBUG ===\n")
+
+        # Gestione dei casi mancanti
+        if not gp and not year:
+            print("Both GP and year missing")
+            dispatcher.utter_message(response="utter_ask_gp")
+            dispatcher.utter_message(response="utter_ask_year")
+            return []
+        elif not gp:
+            print("Only GP missing")
+            dispatcher.utter_message(response="utter_ask_gp")
+            return []
+        elif not year:
+            print("Only year missing")
+            dispatcher.utter_message(response="utter_ask_year")
             return []
 
         try:
+            # Get list of available events for that year
+            schedule = fastf1.get_event_schedule(int(year))
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            
+            # Check if GP exists
+            gp_lower = gp.lower()
+            valid_gp = any(gp_lower in event.lower() for event in valid_events)
+            
+            print(f"GP validation - Is valid: {valid_gp}")
+            
+            if not valid_gp:
+                dispatcher.utter_message(
+                    text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
+                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return []
+
             # Sessioni standard di un weekend di gara
             session_types = ["FP1", "FP2", "FP3", "Q", "R"]
             session_names = {
@@ -135,9 +199,13 @@ class ActionGetEventSchedule(Action):
 
             schedule = []
             for session_type in session_types:
-                session = fastf1.get_session(int(year), gp, session_type)
-                if session.date:
-                    schedule.append(f"{session_names[session_type]}: {session.date.strftime('%d %B %Y, %H:%M')}")
+                try:
+                    session = fastf1.get_session(int(year), gp, session_type)
+                    if session and session.date:
+                        schedule.append(f"{session_names[session_type]}: {session.date.strftime('%d %B %Y, %H:%M')}")
+                except Exception as session_error:
+                    print(f"Errore nel recupero della sessione {session_type}: {str(session_error)}")
+                    continue
 
             if not schedule:
                 message = f"Non sono riuscito a trovare il programma per il GP di {gp} nel {year}."
@@ -145,8 +213,10 @@ class ActionGetEventSchedule(Action):
                 message = f"Programma del GP di {gp} nel {year}:\n" + "\n".join(schedule)
 
             dispatcher.utter_message(text=message)
+            
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero del programma: {str(e)}")
+            print(f"Errore generale: {str(e)}")
         return []
 
 
@@ -157,14 +227,63 @@ class ActionGetRaceWinner(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        gp = tracker.get_slot("gp")
-        year = tracker.get_slot("year")
+        # Extract entities from the latest message
+        latest_message = tracker.latest_message
+        text = latest_message.get('text', '').lower()
+        entities = latest_message.get('entities', [])
+        
+        # Get GP and year from entities
+        gp = None
+        year = None
+        
+        # Estrai GP e year dalle entities
+        for entity in entities:
+            if entity['entity'] == 'gp':
+                gp = entity['value']
+            elif entity['entity'] == 'year':
+                year = entity['value']
+                
+        # Se non sono stati trovati nelle entities, prova a estrarli dal testo
+        if not gp and ('gp di' in text or 'gran premio di' in text):
+            text_parts = text.split('gp di' if 'gp di' in text else 'gran premio di')
+            if len(text_parts) > 1:
+                gp = text_parts[1].split('nel')[0].strip()
+        
+        if not year and 'nel' in text:
+            year_part = text.split('nel')[1].strip()
+            try:
+                year = year_part[:4]
+            except:
+                year = None
 
-        if not gp or not year:
-            dispatcher.utter_message(text="Per favore specifica il GP e l'anno.")
+        # Gestione dei casi mancanti
+        if not gp and not year:
+            dispatcher.utter_message(response="utter_ask_gp")
+            dispatcher.utter_message(response="utter_ask_year")
+            return []
+        elif not gp:
+            dispatcher.utter_message(response="utter_ask_gp")
+            return []
+        elif not year:
+            dispatcher.utter_message(response="utter_ask_year")
             return []
 
         try:
+            # Get list of available events for that year
+            schedule = fastf1.get_event_schedule(int(year))
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            
+            # Check if GP exists
+            gp_lower = gp.lower()
+            valid_gp = any(gp_lower in event.lower() for event in valid_events)
+            
+            if not valid_gp:
+                dispatcher.utter_message(
+                    text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
+                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return []
+
             session = fastf1.get_session(int(year), gp, "R")
             session.load()
             winner = session.results.iloc[0]
@@ -175,6 +294,7 @@ class ActionGetRaceWinner(Action):
             )
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero dei risultati: {str(e)}")
+            print(f"Errore generale: {str(e)}")
         return []
 
 class ActionGetWeatherInfo(Action):
@@ -184,22 +304,55 @@ class ActionGetWeatherInfo(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        # Recupera gli slot
-        gp = tracker.get_slot("gp")
-        year = tracker.get_slot("year")
+        # Extract entities from the latest message
+        latest_message = tracker.latest_message
+        text = latest_message.get('text', '').lower()
+        entities = latest_message.get('entities', [])
+        
+        # Get GP and year from entities
+        gp = None
+        year = None
+        
+        # Estrai GP e year dalle entities
+        for entity in entities:
+            if entity['entity'] == 'gp':
+                gp = entity['value']
+            elif entity['entity'] == 'year':
+                year = entity['value']
+                
+        # Se non sono stati trovati nelle entities, prova a estrarli dal testo
+        if not gp and ('gp di' in text or 'gran premio di' in text):
+            text_parts = text.split('gp di' if 'gp di' in text else 'gran premio di')
+            if len(text_parts) > 1:
+                gp = text_parts[1].split('nel')[0].strip()
+        
+        if not year and 'nel' in text:
+            year_part = text.split('nel')[1].strip()
+            try:
+                year = year_part[:4]  # prendi i primi 4 caratteri che dovrebbero essere l'anno
+            except:
+                year = None
 
-        # Controlla se gli slot sono impostati
         if not gp or not year:
-            missing_slots = []
-            if not gp:
-                dispatcher.utter_message(response="utter_ask_gp")
-                missing_slots.append("gp")
-            if not year:
-                dispatcher.utter_message(response="utter_ask_year")
-                missing_slots.append("year")
-            return []  # Interrompe l'azione finché gli slot non sono completati
+            dispatcher.utter_message(text="Per favore specifica sia il GP che l'anno.")
+            return []
 
         try:
+            # Get list of available events for that year
+            schedule = fastf1.get_event_schedule(int(year))
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            
+            # Check if GP exists
+            gp_lower = gp.lower()
+            valid_gp = any(gp_lower in event.lower() for event in valid_events)
+            
+            if not valid_gp:
+                dispatcher.utter_message(
+                    text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
+                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return []
+
             # Usa FastF1 per ottenere i dati meteo
             session = fastf1.get_session(int(year), gp, "R")
             session.load()
@@ -207,8 +360,10 @@ class ActionGetWeatherInfo(Action):
             temp_avg = weather['AirTemp'].mean()
             response = f"Durante il GP di {gp} nel {year}, la temperatura media era di {temp_avg:.2f}°C."
             dispatcher.utter_message(text=response)
+            
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero del meteo: {str(e)}")
+            print(f"Errore generale: {str(e)}")
         return []
 
 
@@ -220,15 +375,54 @@ class ActionGetFastestLap(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        gp = tracker.get_slot("gp")
-        year = tracker.get_slot("year")
-        driver = tracker.get_slot("driver")
+        # Extract entities from the latest message
+        latest_message = tracker.latest_message
+        text = latest_message.get('text', '').lower()
+        entities = latest_message.get('entities', [])
+        
+        # Get GP, year and driver from entities
+        gp = None
+        year = None
+        driver = None
+        
+        for entity in entities:
+            if entity['entity'] == 'gp':
+                gp = entity['value']
+            elif entity['entity'] == 'year':
+                year = entity['value']
+            elif entity['entity'] == 'driver':
+                driver = entity['value']
 
-        if not gp or not year or not driver:
-            dispatcher.utter_message(text="Per favore specifica il GP, l'anno e il pilota.")
+        # Gestione dei casi mancanti
+        missing_info = []
+        if not gp:
+            missing_info.append("utter_ask_gp")
+        if not year:
+            missing_info.append("utter_ask_year")
+        if not driver:
+            missing_info.append("utter_ask_driver")
+            
+        if missing_info:
+            for response in missing_info:
+                dispatcher.utter_message(response=response)
             return []
 
         try:
+            # Get list of available events for that year
+            schedule = fastf1.get_event_schedule(int(year))
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            
+            # Check if GP exists
+            gp_lower = gp.lower()
+            valid_gp = any(gp_lower in event.lower() for event in valid_events)
+            
+            if not valid_gp:
+                dispatcher.utter_message(
+                    text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
+                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return []
+
             session = fastf1.get_session(int(year), gp, "R")
             session.load()
             laps = session.laps.pick_driver(driver.upper())
@@ -239,4 +433,5 @@ class ActionGetFastestLap(Action):
             )
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero del giro più veloce: {str(e)}")
+            print(f"Errore generale: {str(e)}")
         return []
