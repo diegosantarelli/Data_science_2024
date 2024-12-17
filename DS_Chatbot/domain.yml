@@ -65,12 +65,20 @@ slots:
     mappings:
       - type: from_entity
         entity: gp
+  
+  gp_valid:
+    type: bool
+    influence_conversation: true
+    mappings:
+      - type: custom
+  
   year:
     type: text
     influence_conversation: true
     mappings:
       - type: from_entity
         entity: year
+  
   driver:
     type: text
     influence_conversation: true

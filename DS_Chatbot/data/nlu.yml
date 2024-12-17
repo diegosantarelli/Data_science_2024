@@ -58,11 +58,6 @@ nlu:
     - Voglio sapere i dettagli del GP di [Silverstone](gp)
 
 
-- intent: ask_circuit_info
-  examples: |
-    - Dimmi le caratteristiche del circuito di [Monza](gp)
-    - Quali sono i dettagli del circuito di [Silverstone](gp)?
-
 
 
 

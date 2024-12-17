@@ -27,10 +27,13 @@ class ActionGetCircuitInfo(Action):
             
             if not circuit_name:
                 circuit_name = text.split('circuito di')[-1].strip()
+        else:
+            # Se non c'è "circuito di", prova a estrarre il nome dalla parte finale del testo
+            circuit_name = text.strip()
 
         if not circuit_name:
             dispatcher.utter_message(text="Per quale circuito vuoi informazioni?")
-            return [SlotSet("gp", None), SlotSet("gp_valid", False)]
+            return []
 
         try:
             # Get circuits from API
@@ -42,11 +45,7 @@ class ActionGetCircuitInfo(Action):
             circuits_df["circuitName_lower"] = circuits_df["circuitName"].str.lower().str.strip()
             
             # Try exact match first
-            filtered_circuit = circuits_df[circuits_df["circuitName_lower"] == circuit_name_lower]
-            
-            # If no exact match, try partial match
-            if filtered_circuit.empty:
-                filtered_circuit = circuits_df[circuits_df["circuitName_lower"].str.contains(circuit_name_lower, na=False, case=False)]
+            filtered_circuit = circuits_df[circuits_df["circuitName_lower"].str.contains(circuit_name_lower, na=False, case=False)]
             
             # If no matches found, return list of valid circuits
             if filtered_circuit.empty:
@@ -55,7 +54,7 @@ class ActionGetCircuitInfo(Action):
                     text=f"Mi dispiace, ma '{circuit_name}' non è un circuito valido. "
                          f"Ecco i circuiti disponibili: {', '.join(valid_circuits)}."
                 )
-                return [SlotSet("gp", None), SlotSet("gp_valid", False)]
+                return []
 
             # If match found, return circuit info
             circuit = filtered_circuit.iloc[0]
@@ -64,12 +63,12 @@ class ActionGetCircuitInfo(Action):
                 f"Coordinate: latitudine {circuit['lat']}, longitudine {circuit['long']}."
             )
             dispatcher.utter_message(text=response)
-            return [SlotSet("gp", circuit['circuitName']), SlotSet("gp_valid", True)]
+            return []
 
         except Exception as e:
             dispatcher.utter_message(text="Si è verificato un errore nel recupero delle informazioni. Riprova più tardi.")
             print(f"Errore: {e}")
-            return [SlotSet("gp", None), SlotSet("gp_valid", False)]
+            return []
 
 
 
