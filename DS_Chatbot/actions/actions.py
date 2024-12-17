@@ -2,11 +2,8 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from fastf1.ergast import Ergast
 from fuzzywuzzy import process
-
-from rasa_sdk import Action, Tracker
-from rasa_sdk.executor import CollectingDispatcher
-from fastf1.ergast import Ergast
-from fuzzywuzzy import process
+import fastf1
+from rasa_sdk.events import SlotSet
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -15,52 +12,64 @@ class ActionGetCircuitInfo(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        # Recupera lo slot "gp" (nome del circuito)
-        circuit_name = tracker.get_slot("gp")
-        year = 2023  # Anno di default
+        # Extract circuit name from entities in the latest message
+        latest_message = tracker.latest_message
+        entities = latest_message.get('entities', [])
+        text = latest_message.get('text', '').lower()
+        
+        # Extract circuit name from text or entities
+        circuit_name = None
+        if 'circuito di' in text:
+            for entity in entities:
+                if entity['entity'] == 'gp':
+                    circuit_name = entity['value']
+                    break
+            
+            if not circuit_name:
+                circuit_name = text.split('circuito di')[-1].strip()
 
         if not circuit_name:
             dispatcher.utter_message(text="Per quale circuito vuoi informazioni?")
-            return []
+            return [SlotSet("gp", None), SlotSet("gp_valid", False)]
 
         try:
-            # Inizializza Ergast e ottieni la lista dei circuiti
+            # Get circuits from API
             ergast = Ergast(result_type="pandas")
-            circuits_df = ergast.get_circuits(season=year)
-
-            # Controllo che ci siano dati
-            if circuits_df.empty:
-                dispatcher.utter_message(text="Non ho trovato alcun circuito per la stagione specificata.")
-                return []
-
-            # Applica fuzzy matching per individuare il circuito corretto
-            circuit_names = circuits_df["circuitName"].tolist()
-            best_match, score = process.extractOne(circuit_name, circuit_names)
-
-            # Verifica la similarità del risultato
-            if score < 80:  # Soglia di similarità
+            circuits_df = ergast.get_circuits(season=2023)
+            
+            # Normalize circuit names for comparison
+            circuit_name_lower = circuit_name.lower().strip()
+            circuits_df["circuitName_lower"] = circuits_df["circuitName"].str.lower().str.strip()
+            
+            # Try exact match first
+            filtered_circuit = circuits_df[circuits_df["circuitName_lower"] == circuit_name_lower]
+            
+            # If no exact match, try partial match
+            if filtered_circuit.empty:
+                filtered_circuit = circuits_df[circuits_df["circuitName_lower"].str.contains(circuit_name_lower, na=False, case=False)]
+            
+            # If no matches found, return list of valid circuits
+            if filtered_circuit.empty:
+                valid_circuits = sorted(circuits_df["circuitName"].tolist())
                 dispatcher.utter_message(
-                    text=f"Non ho trovato il circuito '{circuit_name}'. "
-                         f"Prova con uno di questi: {', '.join(circuit_names)}."
+                    text=f"Mi dispiace, ma '{circuit_name}' non è un circuito valido. "
+                         f"Ecco i circuiti disponibili: {', '.join(valid_circuits)}."
                 )
-                return []
+                return [SlotSet("gp", None), SlotSet("gp_valid", False)]
 
-            # Recupera il circuito corrispondente
-            circuit = circuits_df[circuits_df["circuitName"] == best_match].iloc[0]
+            # If match found, return circuit info
+            circuit = filtered_circuit.iloc[0]
             response = (
                 f"Il circuito '{circuit['circuitName']}' si trova a {circuit['locality']}, {circuit['country']}.\n"
                 f"Coordinate: latitudine {circuit['lat']}, longitudine {circuit['long']}."
             )
+            dispatcher.utter_message(text=response)
+            return [SlotSet("gp", circuit['circuitName']), SlotSet("gp_valid", True)]
 
         except Exception as e:
-            dispatcher.utter_message(
-                text="Si è verificato un errore nel recupero delle informazioni. Riprova più tardi."
-            )
+            dispatcher.utter_message(text="Si è verificato un errore nel recupero delle informazioni. Riprova più tardi.")
             print(f"Errore: {e}")
-            return []
-
-        dispatcher.utter_message(text=response)
-        return []
+            return [SlotSet("gp", None), SlotSet("gp_valid", False)]
 
 
 
