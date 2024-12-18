@@ -2,9 +2,8 @@ version: "3.1"
 
 rules:
 
-- rule: Risposta diretta al vincitore
+- rule: Risposta diretta al vincitore con tutti i dati
   condition:
-  # La rule si applica solo quando entrambi gli slot sono impostati
   - slot_was_set:
     - gp: any
     - year: any

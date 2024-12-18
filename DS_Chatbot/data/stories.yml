@@ -42,12 +42,9 @@ stories:
   - intent: inform
   - action: action_get_event_schedule
 
-- story: programma del GP - chiedi GP
+- story: programma del GP - chiedi GP e rispondi
   steps:
   - intent: ask_event_schedule
-  - slot_was_set:
-      - gp: null
-      - year: any  # qualsiasi valore di anno
   - action: utter_ask_gp
   - intent: inform
   - action: action_get_event_schedule
@@ -58,9 +55,6 @@ stories:
     entities:
     - gp: "Italian Grand Prix"
     - year: "2022"
-  - slot_was_set:
-    - gp: "Italian Grand Prix"
-    - year: "2022"
   - action: action_get_race_winner
 
 - story: vincitore della gara - chiedi anno
@@ -68,31 +62,26 @@ stories:
   - intent: ask_race_winner
     entities:
     - gp: "Italian Grand Prix"
-  - slot_was_set:
-    - gp: "Italian Grand Prix"
-    - year: null
   - action: utter_ask_year
   - intent: inform
-    entities:
-    - year: "2022"
-  - slot_was_set:
-    - year: "2022"
   - action: action_get_race_winner
 
 - story: vincitore della gara - chiedi GP
   steps:
   - intent: ask_race_winner
     entities:
-    - year: "2022"
-  - slot_was_set:
-    - gp: null
-    - year: "2022"
+    - year: "2021"
   - action: utter_ask_gp
   - intent: inform
-    entities:
-    - gp: "Italian Grand Prix"
-  - slot_was_set:
-    - gp: "Italian Grand Prix"
+  - action: action_get_race_winner
+
+- story: vincitore della gara - chiedi GP e anno
+  steps:
+  - intent: ask_race_winner
+  - action: utter_ask_gp
+  - intent: inform
+  - action: utter_ask_year
+  - intent: inform
   - action: action_get_race_winner
 
 - story: giro veloce del pilota

@@ -1,9 +1,10 @@
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from fastf1.ergast import Ergast
-from fuzzywuzzy import process
+from fuzzywuzzy import fuzz, process
 import fastf1
 from rasa_sdk.events import SlotSet
+from typing import Dict, Any, List, Text
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -115,25 +116,31 @@ class ActionGetEventSchedule(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        # Extract entities from the latest message
         latest_message = tracker.latest_message
         text = latest_message.get('text', '').lower()
         entities = latest_message.get('entities', [])
         
-        print("\n=== DEBUG INFO ===")
-        print(f"Text: {text}")
-        print(f"Entities: {entities}")
+        # Ottieni la lista dei GP validi all'inizio
+        try:
+            schedule = fastf1.get_event_schedule(2023)
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+        except Exception as e:
+            dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
+            return []
         
         # Reset slots se è una nuova domanda
-        if 'programma' in text:
+        if 'programma' in text or 'orari' in text:
             gp = None
             year = None
         else:
-            # Get GP and year from entities or previous slots
             gp = tracker.get_slot("gp")
             year = tracker.get_slot("year")
         
-        print(f"Current slots - GP: {gp}, Year: {year}")
+        # Estrai l'anno dalle entities o dal testo
+        for entity in entities:
+            if entity['entity'] == 'year':
+                year = entity['value']
+                break
         
         # Se è una risposta diretta con l'anno
         if text.isdigit() and len(text) == 4:
@@ -142,45 +149,71 @@ class ActionGetEventSchedule(Action):
                 return self.get_schedule(dispatcher, gp, year)
             return [SlotSet("year", year)]
         
-        # Se è una risposta diretta con il GP
-        if not entities and not text.isdigit() and len(text.strip()) > 0:
-            gp = text.strip()
-            if year:  # Se abbiamo già l'anno memorizzato
-                return self.get_schedule(dispatcher, gp, year)
-            return [SlotSet("gp", gp)]
-        
-        # Estrazione dalle entities
-        for entity in entities:
-            if entity['entity'] == 'gp':
-                gp = entity['value']
-            elif entity['entity'] == 'year':
-                year = entity['value']
-        
-        # Estrazione dal testo se necessario
-        if not gp and ('gp di' in text or 'gran premio di' in text):
-            text_parts = text.split('gp di' if 'gp di' in text else 'gran premio di')
-            if len(text_parts) > 1:
-                gp = text_parts[1].split('nel')[0].strip()
-        
         if not year and 'nel' in text:
-            year_part = text.split('nel')[1].strip()
             try:
-                year = year_part[:4]
+                year = text.split('nel')[1].strip()[:4]
             except:
                 year = None
+        
+        # Estrai il GP dal testo o dalle entities
+        if not gp:
+            # Prima cerca nelle entities
+            for entity in entities:
+                if entity['entity'] == 'gp':
+                    gp = entity['value']
+                    break
+            
+            # Se non trovato nelle entities, usa il testo completo se è una risposta a utter_ask_gp
+            if not gp and tracker.latest_action_name == "utter_ask_gp":
+                gp = text.strip()
+            
+            # Altrimenti prova a pulire il testo
+            elif not gp:
+                text_clean = text
+                words_to_remove = [
+                    'mostrami', 'gli orari', 'del', 'gp di', 'gran premio di', 'nel',
+                    year if year else '', 'qual è', 'il programma', 'qual', 'è',
+                    '?', '.', '!'  # Rimuovi la punteggiatura
+                ]
+                for remove in words_to_remove:
+                    text_clean = text_clean.replace(remove, '')
+                text_clean = text_clean.strip()
+                
+                if text_clean and not text_clean.isdigit():
+                    gp = text_clean
 
-        print(f"Final values - GP: {gp}, Year: {year}")
+        # Se non è stato specificato un GP
+        if not gp or gp.isspace():
+            dispatcher.utter_message(
+                text=f"Non hai specificato un GP. "
+                     f"Ecco i GP disponibili: {', '.join(valid_events)}."
+            )
+            return []
 
-        # Gestione dei casi mancanti
-        if gp and not year:
+        # Verifica validità del GP
+        try:
+            # Cerca la corrispondenza migliore
+            gp_lower = gp.lower()
+            matching_events = [event for event in valid_events if gp_lower in event.lower()]
+            
+            if not matching_events:
+                dispatcher.utter_message(
+                    text=f"Mi dispiace, ma '{gp}' non è un GP valido. "
+                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return []
+            
+            # Usa il nome esatto del GP
+            gp = matching_events[0]
+            
+        except Exception as e:
+            dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
+            return []
+
+        # Se il GP è valido ma non abbiamo l'anno, chiediamo l'anno
+        if not year:
             dispatcher.utter_message(response="utter_ask_year")
             return [SlotSet("gp", gp)]
-        elif year and not gp:
-            dispatcher.utter_message(response="utter_ask_gp")
-            return [SlotSet("year", year)]
-        elif not gp and not year:
-            dispatcher.utter_message(text="Per favore specifica sia il GP che l'anno.")
-            return []
 
         # Se abbiamo entrambi i valori, procedi con la ricerca
         return self.get_schedule(dispatcher, gp, year)
@@ -258,63 +291,75 @@ class ActionGetRaceWinner(Action):
 
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
-            domain: dict) -> list:
-        # Extract entities from the latest message
+            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        # Ottieni gli slot esistenti
+        gp = None
+        year = None
+        
+        # Verifica se è una nuova domanda sul vincitore o se stiamo rispondendo all'anno
         latest_message = tracker.latest_message
         text = latest_message.get('text', '').lower()
+        intent = latest_message.get('intent', {}).get('name')
         entities = latest_message.get('entities', [])
         
-        print("\n=== DEBUG INFO ===")
-        print(f"Text: {text}")
-        print(f"Entities: {entities}")
+        # Lista di frasi che indicano una nuova domanda sul vincitore
+        winner_phrases = [
+            'chi ha vinto', 'vincitore', 'chi ha trionfato', 'chi è arrivato primo',
+            'dimmi chi ha vinto', 'chi è stato il vincitore', 'chi è il vincitore'
+        ]
         
-        # Reset slots se è una nuova domanda
-        if 'vinto' in text or 'vincitore' in text:
-            gp = None
-            year = None
-        else:
-            # Get GP and year from entities or previous slots
+        # Se è una nuova domanda, prendi gli slot solo se non ci sono entities
+        if not any(phrase in text for phrase in winner_phrases):
             gp = tracker.get_slot("gp")
             year = tracker.get_slot("year")
         
-        print(f"Current slots - GP: {gp}, Year: {year}")
-        
-        # Se è una risposta diretta con l'anno
-        if text.isdigit() and len(text) == 4:
-            year = text
-            if gp:  # Se abbiamo già il GP memorizzato
-                return self.get_winner(dispatcher, gp, year)
-            return [SlotSet("year", year)]
-        
-        # Se è una risposta diretta con il GP
-        if not entities and not text.isdigit() and len(text.strip()) > 0:
-            gp = text.strip()
-            if year:  # Se abbiamo già l'anno memorizzato
-                return self.get_winner(dispatcher, gp, year)
-            return [SlotSet("gp", gp)]
-        
-        # Estrazione dalle entities
+        # Estrai l'anno dalle entities se presente
+        for entity in entities:
+            if entity['entity'] == 'year' and entity['value'].isdigit():
+                year = entity['value']
+                
+        # Estrai il GP dalle entities se presente
         for entity in entities:
             if entity['entity'] == 'gp':
                 gp = entity['value']
-            elif entity['entity'] == 'year':
-                year = entity['value']
         
-        print(f"After entities extraction - GP: {gp}, Year: {year}")
-
-        # Gestione dei casi mancanti
-        if gp and not year:
+        # Se è una risposta con il GP (intent: inform) e non è un anno
+        if intent == 'inform' and not text.isdigit():
+            # Pulisci il testo da parole comuni
+            text_clean = text.strip().lower()
+            words_to_remove = [
+                'gp', 'gran premio', 'di', 'the', 'nel', year if year else '',
+                'grand prix', 'prix', 'gran', 'premio', 'vincitore', 'chi ha vinto',
+                'chi è stato', 'chi ha trionfato', 'chi è arrivato primo', 'dimmi chi ha vinto',
+                'chi è il vincitore', 'della gara', 'a', 'nel'
+            ]
+            for word in words_to_remove:
+                text_clean = text_clean.replace(word.lower(), '')
+            text_clean = text_clean.strip()
+            
+            if text_clean:
+                gp = text_clean
+        
+        # Se è una risposta con l'anno (intent: inform)
+        if intent == 'inform' and text.isdigit():
+            year = text
+        
+        # Se abbiamo sia GP che anno, procedi con la ricerca
+        if gp and year and str(year).isdigit():
+            return self.get_winner(dispatcher, gp, year)
+        
+        # Se non abbiamo il GP, chiediamolo
+        if not gp:
+            dispatcher.utter_message(text="Per quale GP vuoi informazioni?")
+            return [SlotSet("year", year)] if year and str(year).isdigit() else []
+        
+        # Se non abbiamo l'anno, chiediamolo
+        if not year or not str(year).isdigit():
             dispatcher.utter_message(response="utter_ask_year")
             return [SlotSet("gp", gp)]
-        elif year and not gp:
-            dispatcher.utter_message(response="utter_ask_gp")
-            return [SlotSet("year", year)]
-        elif not gp and not year:
-            dispatcher.utter_message(text="Per favore specifica sia il GP che l'anno.")
-            return []
-
-        # Se abbiamo entrambi i valori, procedi con la ricerca
-        return self.get_winner(dispatcher, gp, year)
+        
+        return []
 
     def get_winner(self, dispatcher: CollectingDispatcher, gp: str, year: str):
         try:
@@ -332,31 +377,22 @@ class ActionGetRaceWinner(Action):
             # Get list of available events for that year
             print("Getting event schedule...")
             schedule = fastf1.get_event_schedule(int(year))
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
             
-            # Check if GP exists and get its round number
+            # Usa fuzzy matching per trovare il GP più simile
             gp_lower = gp.lower()
-            valid_gp = None
-            matched_gp = None
-            round_number = None
+            best_match = process.extractOne(gp_lower, valid_events, scorer=fuzz.ratio)
             
-            # Cerca una corrispondenza esatta o parziale e ottieni il round number
-            for _, row in schedule.iterrows():
-                event_name = row['EventName']
-                if gp_lower == event_name.lower():
-                    valid_gp = True
-                    matched_gp = event_name
-                    round_number = row['RoundNumber']
-                    break
-                elif gp_lower in event_name.lower():
-                    valid_gp = True
-                    matched_gp = event_name
-                    round_number = row['RoundNumber']
-                    break
-            
-            print(f"GP validation - Is valid: {valid_gp}, Matched GP: {matched_gp}, Round: {round_number}")
-            
-            if not valid_gp:
-                valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            if best_match and best_match[1] > 60:  # Se la similarità è > 60%
+                matched_gp = best_match[0]
+                # Trova il round number per il GP corrispondente
+                for _, row in schedule.iterrows():
+                    if row['EventName'] == matched_gp:
+                        round_number = row['RoundNumber']
+                        break
+                
+                print(f"GP validation - Best match: {matched_gp}, Similarity: {best_match[1]}%, Round: {round_number}")
+            else:
                 dispatcher.utter_message(
                     text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
                          f"Ecco i GP disponibili: {', '.join(valid_events)}."
@@ -380,31 +416,37 @@ class ActionGetRaceWinner(Action):
             winner = results_df.iloc[0]
             print(f"Winner data: {winner}")
             
-            # Usa i campi corretti dal DataFrame
-            driver_name = f"{winner['givenName']} {winner['familyName']}"
+            # Estrai le informazioni del vincitore
+            winner_name = f"{winner['givenName']} {winner['familyName']}"
             team_name = winner['constructorName']
-            grid_pos = winner['grid']
+            grid_position = winner['grid']
             laps = winner['laps']
-            race_time = winner['totalRaceTime']
-            fastest_lap = winner['fastestLapTime']
+            nationality = winner['driverNationality']
+            avg_speed = winner['fastestLapAvgSpeed']
             
-            print(f"Winner found: {driver_name} ({team_name})")
+            # Rimuovi "0 days" dai tempi
+            total_time = str(winner['totalRaceTime']).replace('0 days ', '')
+            fastest_lap = str(winner['fastestLapTime']).replace('0 days ', '')
             
-            response = (
-                f"Il vincitore del GP di {matched_gp} nel {year} è stato {driver_name} del team {team_name}.\n"
-                f"È partito dalla {grid_pos}ª posizione, ha completato {laps} giri "
-                f"con un tempo totale di {race_time}.\n"
-                f"Il suo giro più veloce è stato {fastest_lap}."
+            # Costruisci il messaggio di risposta
+            message = (
+                f"Il vincitore del GP di {matched_gp} nel {year} è stato {winner_name} ({nationality}) del team {team_name}.\n"
+                f"È partito dalla {grid_position}ª posizione, ha completato {laps} giri "
+                f"con un tempo totale di {total_time}.\n"
+                f"Il suo giro più veloce è stato {fastest_lap} "
+                f"con una velocità media di {avg_speed:.3f} km/h."
             )
             
-            dispatcher.utter_message(text=response)
+            dispatcher.utter_message(text=message)
+            return [SlotSet("gp", matched_gp), SlotSet("year", year)]
+
         except Exception as e:
             print(f"\nError in get_winner:")
             print(f"Type: {type(e)}")
             print(f"Message: {str(e)}")
             import traceback
             print(f"Traceback: {traceback.format_exc()}")
-            dispatcher.utter_message(text=f"Mi dispiace, si è verificato un errore nel recupero dei risultati.")
+            dispatcher.utter_message(text=f"Mi dispiace, si è verificato un errore nel recupero delle informazioni.")
         return []
 
 class ActionGetWeatherInfo(Action):

@@ -22,6 +22,7 @@ actions:
   - action_get_fastest_lap
   - action_ask_missing_gp
   - action_ask_missing_year
+  - utter_ask_year
 
 
 responses:
@@ -62,23 +63,24 @@ entities:
 slots:
   gp:
     type: text
-    influence_conversation: true
     mappings:
-      - type: from_entity
-        entity: gp
-  
+    - type: from_entity
+      entity: gp
+  year:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: year
+    - type: from_text
+      conditions:
+      - active_loop: null
+        requested_slot: year
+
   gp_valid:
     type: bool
     influence_conversation: true
     mappings:
       - type: custom
-  
-  year:
-    type: text
-    influence_conversation: true
-    mappings:
-      - type: from_entity
-        entity: year
   
   driver:
     type: text
@@ -86,6 +88,12 @@ slots:
     mappings:
       - type: from_entity
         entity: driver
+
+  requested_slot:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: custom
 
 
 
