@@ -11,6 +11,8 @@ intents:
   - ask_weather_info
   - ask_fastest_lap
   - inform
+  - compare_drivers_telemetry
+  - show_speed_map
 
 
 actions:
@@ -23,6 +25,8 @@ actions:
   - action_ask_missing_gp
   - action_ask_missing_year
   - utter_ask_year
+  - action_compare_telemetry
+  - action_show_speed_map
 
 
 responses:
@@ -59,6 +63,9 @@ entities:
   - gp
   - year
   - session
+  - driver_1
+  - driver_2
+  - driver
 
 slots:
   gp:
@@ -96,6 +103,16 @@ slots:
     mappings:
       - type: from_entity
         entity: driver
+  driver_1:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: driver_1
+  driver_2:
+    type: text
+    mappings:
+      - type: from_entity
+        entity: driver_2
 
   requested_slot:
     type: text

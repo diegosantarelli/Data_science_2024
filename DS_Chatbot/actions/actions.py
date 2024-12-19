@@ -6,6 +6,8 @@ import fastf1
 from rasa_sdk.events import SlotSet
 from typing import Dict, Any, List, Text
 import sys
+import os
+import io
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -787,4 +789,375 @@ class ActionGetFastestLap(Action):
         except Exception as e:
             dispatcher.utter_message(text=f"Errore nel recupero del giro più veloce: {str(e)}")
             print(f"Errore generale: {str(e)}")
+        return []
+
+class ActionCompareTelemetry(Action):
+    def name(self) -> str:
+        return "action_compare_telemetry"
+
+    def create_telemetry_plot(self, fastest_driver_1, fastest_driver_2, driver_1, driver_2, gp, year):
+        import fastf1.plotting
+        from matplotlib import pyplot as plt
+        from fastf1 import utils
+        
+        # Get telemetry data
+        telemetry_driver_1 = fastest_driver_1.get_telemetry().add_distance()
+        telemetry_driver_2 = fastest_driver_2.get_telemetry().add_distance()
+        
+        # Calculate delta time
+        delta_time, ref_tel, compare_tel = utils.delta_time(fastest_driver_1, fastest_driver_2)
+        
+        # Get team colors
+        session = fastest_driver_1.session
+        driver_1_num = fastest_driver_1['DriverNumber']
+        driver_2_num = fastest_driver_2['DriverNumber']
+        team_driver_1 = session.get_driver(driver_1_num)['TeamName']
+        team_driver_2 = session.get_driver(driver_2_num)['TeamName']
+        color_driver_1 = fastf1.plotting.team_color(team_driver_1)
+        color_driver_2 = fastf1.plotting.team_color(team_driver_2)
+        
+        # Create plot
+        plt.style.use('dark_background')
+        fig = plt.figure(figsize=(16, 20))
+        gs = plt.GridSpec(7, 1, height_ratios=[1, 3, 2, 1, 1, 2, 1], hspace=0.4)
+        ax = []
+        for i in range(7):
+            ax.append(fig.add_subplot(gs[i]))
+        
+        # Set title
+        plot_title = f"{year} {gp} - Qualifying - {driver_1} VS {driver_2}"
+        fig.suptitle(plot_title, y=0.98, fontsize=16)
+        
+        # Delta time
+        ax[0].plot(ref_tel['Distance'], delta_time)
+        ax[0].axhline(0)
+        ax[0].set(ylabel=f"Gap to {driver_1} (s)")
+        
+        # Speed
+        ax[1].plot(telemetry_driver_1['Distance'], telemetry_driver_1['Speed'], label=driver_1, color=color_driver_1)
+        ax[1].plot(telemetry_driver_2['Distance'], telemetry_driver_2['Speed'], label=driver_2, color=color_driver_2)
+        ax[1].set(ylabel='Speed')
+        ax[1].legend(loc="lower right")
+        
+        # Throttle
+        ax[2].plot(telemetry_driver_1['Distance'], telemetry_driver_1['Throttle'], label=driver_1, color=color_driver_1)
+        ax[2].plot(telemetry_driver_2['Distance'], telemetry_driver_2['Throttle'], label=driver_2, color=color_driver_2)
+        ax[2].set(ylabel='Throttle')
+        ax[2].legend(loc="lower right")
+        
+        # Brake
+        ax[3].plot(telemetry_driver_1['Distance'], telemetry_driver_1['Brake'], label=driver_1, color=color_driver_1)
+        ax[3].plot(telemetry_driver_2['Distance'], telemetry_driver_2['Brake'], label=driver_2, color=color_driver_2)
+        ax[3].set(ylabel='Brake')
+        ax[3].legend(loc="lower right")
+        
+        # Gear
+        ax[4].plot(telemetry_driver_1['Distance'], telemetry_driver_1['nGear'], label=driver_1, color=color_driver_1)
+        ax[4].plot(telemetry_driver_2['Distance'], telemetry_driver_2['nGear'], label=driver_2, color=color_driver_2)
+        ax[4].set(ylabel='Gear')
+        ax[4].legend(loc="lower right")
+        
+        # RPM
+        ax[5].plot(telemetry_driver_1['Distance'], telemetry_driver_1['RPM'], label=driver_1, color=color_driver_1)
+        ax[5].plot(telemetry_driver_2['Distance'], telemetry_driver_2['RPM'], label=driver_2, color=color_driver_2)
+        ax[5].set(ylabel='RPM')
+        ax[5].legend(loc="lower right")
+        
+        # DRS
+        ax[6].plot(telemetry_driver_1['Distance'], telemetry_driver_1['DRS'], label=driver_1, color=color_driver_1)
+        ax[6].plot(telemetry_driver_2['Distance'], telemetry_driver_2['DRS'], label=driver_2, color=color_driver_2)
+        ax[6].set(ylabel='DRS')
+        ax[6].set(xlabel='Distance (meters)')
+        ax[6].legend(loc="lower right")
+        
+        # Add grid to all subplots
+        for axis in ax:
+            axis.grid(color='grey', linestyle='-', linewidth=0.5)
+            axis.tick_params(axis='both', which='major', labelsize=10)
+            axis.yaxis.label.set_size(12)
+        
+        # Aumenta la dimensione della label dell'asse x
+        ax[6].xaxis.label.set_size(12)
+        
+        # Save plot to static folder
+        plot_filename = f"telemetry_{gp}_{year}_{driver_1}_{driver_2}.png"
+        plot_path = os.path.join("static", "images", plot_filename)
+        os.makedirs(os.path.dirname(plot_path), exist_ok=True)
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight', 
+                    facecolor=fig.get_facecolor(), edgecolor='none',
+                    pad_inches=0.5)
+        plt.close()
+        return plot_filename
+
+    def generate_telemetry_comparison(self, year: str, gp: str, driver_1: str, driver_2: str) -> str:
+        try:
+            # Disable cache
+            fastf1.Cache.disabled = True
+            
+            # Load session
+            session = fastf1.get_session(int(year), gp, 'Q')
+            session.load()
+            
+            # Get list of drivers in the session
+            drivers = session.drivers
+            print("\nDEBUG - Available drivers:")
+            for d in drivers:
+                info = session.get_driver(d)
+                print(f"Driver ID: {d}")
+                print(f"Full Name: {info['FirstName']} {info['LastName']}")
+                print(f"Abbreviation: {info['Abbreviation']}")
+                print(f"Team: {info['TeamName']}")
+                print("-" * 40)
+            
+            driver_info = {}
+            for d in drivers:
+                info = session.get_driver(d)
+                driver_info[info['LastName']] = d           # es. "Verstappen" -> "33"
+                driver_info[info['Abbreviation']] = d  # es. "VER" -> "33"
+            
+            # Check if both drivers were in the session
+            if driver_1 not in driver_info:
+                raise ValueError(f"{driver_1} non ha partecipato a questo GP. Piloti disponibili: {', '.join(sorted(set(info['LastName'] for d in drivers for info in [session.get_driver(d)])))}")
+            if driver_2 not in driver_info:
+                raise ValueError(f"{driver_2} non ha partecipato a questo GP. Piloti disponibili: {', '.join(sorted(set(info['LastName'] for d in drivers for info in [session.get_driver(d)])))}")
+            
+            # Convert names to driver numbers
+            driver_1_num = driver_info[driver_1]
+            driver_2_num = driver_info[driver_2]
+            
+            # Get laps
+            laps_driver_1 = session.laps.pick_driver(driver_1_num)
+            laps_driver_2 = session.laps.pick_driver(driver_2_num)
+            
+            # Get fastest laps
+            fastest_driver_1 = laps_driver_1.pick_fastest()
+            fastest_driver_2 = laps_driver_2.pick_fastest()
+            
+            # Check if both drivers have valid fastest laps
+            if fastest_driver_1.empty or fastest_driver_2.empty:
+                raise ValueError("Non sono disponibili giri validi per il confronto")
+            
+            # Get plot filename
+            plot_filename = self.create_telemetry_plot(fastest_driver_1, fastest_driver_2, driver_1, driver_2, gp, year)
+            
+            return plot_filename
+            
+        except ValueError as ve:
+            print(f"Error in telemetry comparison: {str(ve)}")
+            raise ve
+        except Exception as e:
+            print(f"Unexpected error in telemetry comparison: {str(e)}")
+            raise ValueError("Si è verificato un errore nel recupero dei dati telemetrici")
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker,
+            domain: dict) -> list:
+        try:
+            gp = tracker.get_slot("gp")
+            driver_1 = tracker.get_slot("driver_1")
+            driver_2 = tracker.get_slot("driver_2")
+            year = tracker.get_slot("year")
+            
+            print(f"DEBUG - Initial slots: gp={gp}, driver_1={driver_1}, driver_2={driver_2}, year={year}")
+            
+            # Se l'intent è inform, verifica se stiamo aspettando l'anno
+            latest_intent = tracker.latest_message.get('intent', {}).get('name')
+            if latest_intent == 'inform':
+                # Estrai l'anno dal messaggio
+                text = tracker.latest_message.get('text', '')
+                try:
+                    year = int(text)
+                except ValueError:
+                    pass
+
+            # Se manca qualche dato necessario, chiedi all'utente
+            if not all([gp, driver_1, driver_2, year]):
+                if not year:
+                    dispatcher.utter_message(response="utter_ask_year")
+                    return []
+                return []
+
+            try:
+                # Get plot filename
+                plot_filename = self.generate_telemetry_comparison(year, gp, driver_1, driver_2)
+                plot_path = os.path.join("static", "images", plot_filename)
+                
+                # Check if the channel is Telegram
+                input_channel = tracker.get_latest_input_channel()
+                
+                if input_channel == "telegram":
+                    # For Telegram, send the file directly
+                    dispatcher.utter_message(
+                        text=f"Ecco il confronto telemetrico tra {driver_1} e {driver_2} nel GP di {gp} {year}",
+                        image=plot_path  # Telegram può gestire path locali
+                    )
+                else:
+                    # For other channels, use URL
+                    dispatcher.utter_message(
+                        text=f"Ecco il confronto telemetrico tra {driver_1} e {driver_2} nel GP di {gp} {year}",
+                        image=f"http://localhost:5005/static/images/{plot_filename}"
+                    )
+            except ValueError as ve:
+                dispatcher.utter_message(text=f"Mi dispiace, {str(ve)}.")
+            except Exception as e:
+                dispatcher.utter_message(text="Mi dispiace, si è verificato un errore inaspettato.")
+                print(f"Unexpected error: {str(e)}")
+            return []
+        except Exception as e:
+            dispatcher.utter_message(text="Mi dispiace, si è verificato un errore nel processare la richiesta.")
+            print(f"Error in run method: {str(e)}")
+            return []
+
+class ActionShowSpeedMap(Action):
+    def name(self) -> str:
+        return "action_show_speed_map"
+
+    def create_speed_map(self, session, driver, gp, year):
+        print(f"DEBUG - Creating speed map for {driver} at {gp} {year}")
+        import fastf1.plotting
+        from matplotlib import pyplot as plt
+        import numpy as np
+        from matplotlib.collections import LineCollection
+        import matplotlib as mpl
+        
+        # Get driver number/code
+        drivers = session.drivers
+        driver_info = {}
+        for d in drivers:
+            info = session.get_driver(d)
+            driver_info[info['LastName']] = d           # es. "Verstappen" -> "33"
+            driver_info[info['Abbreviation']] = d  # es. "VER" -> "33"
+        
+        if driver not in driver_info:
+            raise ValueError(f"{driver} non ha partecipato a questo GP")
+            
+        driver_num = driver_info[driver]
+        print(f"DEBUG - Driver number: {driver_num}")
+        
+        # Get weekend info
+        weekend = session.event
+        print(f"DEBUG - Weekend info: {weekend}")
+        
+        # Get fastest lap for the driver
+        driver_laps = session.laps.pick_driver(driver_num)
+        print(f"DEBUG - Driver laps: {driver_laps}")
+        
+        if driver_laps.empty:
+            raise ValueError(f"Nessun dato disponibile per {driver} in questa sessione")
+            
+        fastest_lap = driver_laps.pick_fastest()
+        if fastest_lap is None or fastest_lap.empty:
+            raise ValueError(f"Nessun giro veloce disponibile per {driver}")
+        
+        # Get telemetry data
+        x = fastest_lap.telemetry['X']              # values for x-axis
+        y = fastest_lap.telemetry['Y']              # values for y-axis
+        color = fastest_lap.telemetry['Speed']      # value to base color gradient on
+        
+        if x.isnull().all() or y.isnull().all() or color.isnull().all():
+            raise ValueError(f"Dati di posizione o velocità non disponibili per {driver}")
+        
+        # Create line segments
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        
+        # Create plot
+        fig, ax = plt.subplots(sharex=True, sharey=True, figsize=(12, 6.75))
+        fig.suptitle(f'{weekend.name} {year} - {driver} - Speed', size=24, y=0.97)
+        
+        # Adjust margins and turn off axis
+        plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.12)
+        ax.axis('off')
+        
+        # Create background track line
+        ax.plot(fastest_lap.telemetry['X'], fastest_lap.telemetry['Y'],
+                color='black', linestyle='-', linewidth=16, zorder=0)
+        
+        # Create a continuous norm to map from data points to colors
+        norm = plt.Normalize(color.min(), color.max())
+        lc = LineCollection(segments, cmap='plasma', norm=norm,
+                          linestyle='-', linewidth=5)
+        
+        # Set the values used for colormapping
+        lc.set_array(color)
+        
+        # Merge all line segments together
+        line = ax.add_collection(lc)
+        
+        # Create a color bar as a legend
+        cbaxes = fig.add_axes([0.25, 0.05, 0.5, 0.05])
+        normlegend = mpl.colors.Normalize(vmin=color.min(), vmax=color.max())
+        legend = mpl.colorbar.ColorbarBase(cbaxes, norm=normlegend, cmap='plasma',
+                                         orientation="horizontal")
+        legend.set_label('Speed (km/h)', size=12)
+        
+        # Save plot
+        plot_filename = f"speed_map_{gp}_{year}_{driver}.png"
+        plot_path = os.path.join("static", "images", plot_filename)
+        os.makedirs(os.path.dirname(plot_path), exist_ok=True)
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight',
+                   facecolor='white', edgecolor='none')
+        plt.close()
+        
+        return plot_filename
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker,
+            domain: dict) -> list:
+        try:
+            gp = tracker.get_slot("gp")
+            driver = tracker.get_slot("driver")
+            year = tracker.get_slot("year")
+            
+            print(f"DEBUG - Slots: gp={gp}, driver={driver}, year={year}")
+            
+            if not all([gp, driver, year]):
+                if not year:
+                    dispatcher.utter_message(response="utter_ask_year")
+                return []
+            
+            try:
+                # Get event to find weekend number
+                event = fastf1.get_event(int(year), gp)
+                print(f"DEBUG - Event: {event}")
+                
+                if event is None:
+                    raise ValueError(f"Evento non trovato per il GP di {gp} nel {year}")
+                
+                weekend_number = event['RoundNumber']
+                print(f"DEBUG - Weekend number: {weekend_number}")
+                
+                # Load race session
+                session = fastf1.get_session(int(year), weekend_number, 'R')
+                print(f"DEBUG - Session loaded: {session}")
+                session.load()
+                
+                # Create speed map
+                plot_filename = self.create_speed_map(session, driver, gp, year)
+                print(f"DEBUG - Plot filename: {plot_filename}")
+                plot_path = os.path.join("static", "images", plot_filename)
+                
+                # Check channel and send image
+                input_channel = tracker.get_latest_input_channel()
+                if input_channel == "telegram":
+                    dispatcher.utter_message(
+                        text=f"Ecco la mappa delle velocità di {driver} nella gara del GP di {gp} {year}",
+                        image=plot_path
+                    )
+                else:
+                    dispatcher.utter_message(
+                        text=f"Ecco la mappa delle velocità di {driver} nella gara del GP di {gp} {year}",
+                        image=f"http://localhost:5005/static/images/{plot_filename}"
+                    )
+                return []
+                
+            except Exception as e:
+                print(f"DEBUG - Error details: {str(e)}")
+                print(f"DEBUG - Error type: {type(e)}")
+                dispatcher.utter_message(text=f"Mi dispiace, non sono disponibili dati di velocità per {driver} nella gara del GP di {gp} {year}")
+                
+        except Exception as e:
+            dispatcher.utter_message(text="Mi dispiace, si è verificato un errore nel processare la richiesta.")
+            print(f"Error: {str(e)}")
+            
         return []

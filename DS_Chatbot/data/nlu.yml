@@ -120,6 +120,25 @@ nlu:
     - Sprint
     - Gara
 
+- intent: compare_drivers_telemetry
+  examples: |
+    - Confronta la telemetria di [Verstappen](driver_1) e [Alonso](driver_2) nel [Qatar Grand Prix](gp) del [2021](year)
+    - Mostrami il confronto tra [Hamilton](driver_1) e [Leclerc](driver_2) a [Monza](gp) nel [2023](year)
+    - Analizza le differenze tra [Sainz](driver_1) e [Norris](driver_2) nel [Singapore Grand Prix](gp) del [2022](year)
+    - Confronta [Verstappen](driver_1) vs [Hamilton](driver_2) [Abu Dhabi Grand Prix](gp) [2021](year)
+    - Telemetria [Leclerc](driver_1) contro [Verstappen](driver_2) [Monaco Grand Prix](gp) [2022](year)
+    - Comparazione [Perez](driver_1) [Alonso](driver_2) [Saudi Arabian Grand Prix](gp) [2023](year)
+
+- intent: show_speed_map
+  examples: |
+    - Mostrami la mappa delle velocità di [Verstappen](driver) nel [Qatar Grand Prix](gp) del [2021](year)
+    - Mostra la heat map delle velocità di [Hamilton](driver) a [Monza](gp) nel [2023](year)
+    - Visualizza la mappa velocità di [Leclerc](driver) [Monaco](gp) [2022](year)
+    - Heat map velocità [Alonso](driver) [Singapore Grand Prix](gp) [2023](year)
+    - Velocità sul tracciato di [Sainz](driver) a [Silverstone](gp) nel [2023](year)
+    - Mappa velocità [Piastri](driver) [Las Vegas Grand Prix](gp) [2023](year)
+    - Velocità circuito [Norris](driver) [British Grand Prix](gp) [2023](year)
+
 
 
 

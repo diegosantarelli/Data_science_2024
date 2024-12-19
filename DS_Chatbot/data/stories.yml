@@ -172,3 +172,31 @@ stories:
     - gp: "Italian Grand Prix"
     - year: "2021"
   - action: action_get_weather_info
+
+- story: confronto telemetria piloti - con tutti i dati
+  steps:
+  - intent: compare_drivers_telemetry
+    entities:
+    - driver_1: "Verstappen"
+    - driver_2: "Piastri"
+    - gp: "Qatar Grand Prix"
+    - year: "2021"
+  - action: action_compare_telemetry
+
+- story: confronto telemetria piloti - senza anno
+  steps:
+  - intent: compare_drivers_telemetry
+    entities:
+    - driver_1: "Verstappen"
+    - driver_2: "Piastri"
+    - gp: "Qatar Grand Prix"
+  - action: utter_ask_year
+  - intent: inform
+    entities:
+    - year: "2021"
+  - action: action_compare_telemetry
+
+- story: show speed map
+  steps:
+  - intent: show_speed_map
+  - action: action_show_speed_map

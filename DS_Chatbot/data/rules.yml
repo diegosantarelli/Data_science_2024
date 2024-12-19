@@ -11,5 +11,10 @@ rules:
   - intent: ask_race_winner
   - action: action_get_race_winner
 
+- rule: Show speed map
+  steps:
+  - intent: show_speed_map
+  - action: action_show_speed_map
+
 
 
