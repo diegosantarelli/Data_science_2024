@@ -200,3 +200,8 @@ stories:
   steps:
   - intent: show_speed_map
   - action: action_show_speed_map
+
+- story: greet path
+  steps:
+  - intent: greet
+  - action: utter_greet

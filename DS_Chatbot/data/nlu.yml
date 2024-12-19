@@ -4,21 +4,40 @@ nlu:
 
 - intent: greet
   examples: |
-    - Ciao
-    - Buongiorno
-    - Ehi
+    - hey
+    - ciao
+    - buongiorno
+    - buonasera
+    - salve
+    - ehi
+    - hey ciao
+    - ciao bot
+    - buongiorno bot
+    - salve bot
+    - come stai
+    - come va
+    - hey come va
+    - ciao come stai
 
 - intent: bot_challenge
   examples: |
-    - Sei un bot?
-    - Chi sei?
-    - Sei umano?
+    - sei un bot?
+    - sei un umano?
+    - sto parlando con un bot?
+    - sei una persona?
+    - chi sei?
+    - cosa sei?
 
 - intent: goodbye
   examples: |
-    - Ciao ciao
-    - Arrivederci
-    - A presto
+    - ciao ciao
+    - arrivederci
+    - a presto
+    - ci vediamo
+    - alla prossima
+    - addio
+    - buona giornata
+    - buona serata
 
 - intent: ask_circuit_info
   examples: |

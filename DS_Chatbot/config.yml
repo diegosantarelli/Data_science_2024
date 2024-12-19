@@ -8,7 +8,7 @@ assistant_id: 20241216-115350-open-accrual
 
 # Configuration for Rasa NLU.
 # https://rasa.com/docs/rasa/nlu/components/
-language: en
+language: it
 
 pipeline:
   - name: WhitespaceTokenizer

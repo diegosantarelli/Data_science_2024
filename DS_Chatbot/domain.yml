@@ -14,6 +14,9 @@ intents:
   - compare_drivers_telemetry
   - show_speed_map
 
+channels:
+  - telegram
+  - rest
 
 actions:
   - action_get_event_info
@@ -28,10 +31,10 @@ actions:
   - action_compare_telemetry
   - action_show_speed_map
 
-
 responses:
 
   utter_greet:
+    - text: "Ciao! Sono il tuo assistente F1. Come posso aiutarti?"
     - text: "Ciao! Come posso aiutarti con le informazioni sulla Formula 1? 😊"
     - text: "Buongiorno! Chiedimi qualcosa sulla Formula 1! 😊"
     - text: "Ehi! Posso esserti utile per le informazioni sulla Formula 1? 😊"
