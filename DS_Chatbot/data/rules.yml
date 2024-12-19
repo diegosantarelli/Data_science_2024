@@ -2,8 +2,38 @@ version: "3.1"
 
 rules:
 
-- rule: Risposta diretta al vincitore con tutti i dati
+- rule: Activate fastest lap form
+  steps:
+  - intent: ask_fastest_lap
+  - action: fastest_lap_form
+  - active_loop: fastest_lap_form
+  - slot_was_set:
+      - requested_slot: gp
+
+- rule: Submit fastest lap form
   condition:
+  - active_loop: fastest_lap_form
+  steps:
+  - action: fastest_lap_form
+  - active_loop: null
+  - slot_was_set:
+      - requested_slot: null
+  - action: action_get_fastest_lap
+  - action: action_reset_slots
+
+- rule: Deactivate fastest lap form
+  condition:
+  - active_loop: fastest_lap_form
+  steps:
+  - intent: stop
+  - action: action_deactivate_loop
+  - active_loop: null
+  - slot_was_set:
+      - requested_slot: null
+
+- rule: Handle race winner with complete info
+  condition:
+  - active_loop: null
   - slot_was_set:
     - gp: any
     - year: any

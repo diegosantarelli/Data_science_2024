@@ -53,7 +53,10 @@ nlu:
     - A che ora sono le sessioni del [Monza](gp)?
     - Programma completo del [Spa](gp) [2023](year)
     - Orari delle sessioni per [Silverstone](gp)
-
+    - Qual è il programma dell'[Azerbaijan Grand Prix](gp)?
+    - Programma [Azerbaijan Grand Prix](gp)
+    - Orari [Azerbaijan Grand Prix](gp)
+    - Dimmi gli orari dell'[Azerbaijan Grand Prix](gp)
 
 - intent: ask_race_winner
   examples: |
@@ -109,9 +112,11 @@ nlu:
 
 - intent: ask_fastest_lap
   examples: |
+    # Domande complete (pilota, GP e anno)
     - Qual è stato il giro più veloce di [Verstappen](driver) nel GP di [Monza](gp) nel [2022](year)?
-    - Chi ha fatto il giro più veloce a [Imola](gp) nel [2021](year)?
-
+    - Qual è il fastest lap di [Hamilton](driver) a [Silverstone](gp) nel [2023](year)?
+    - Tempo del giro veloce di [Verstappen](driver) nel [Monaco Grand Prix](gp) [2021](year)
+   
 - intent: inform
   examples: |
     - 2023

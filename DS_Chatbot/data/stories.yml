@@ -30,38 +30,59 @@ stories:
 - story: programma del GP - domanda completa
   steps:
   - intent: ask_event_schedule
+    entities:
+    - gp
+    - year
   - action: action_get_event_schedule
 
 - story: programma del GP - chiedi anno
   steps:
   - intent: ask_event_schedule
-  - slot_was_set:
-      - gp: any  # qualsiasi valore di GP
-      - year: null
+    entities:
+    - gp
   - action: utter_ask_year
   - intent: inform
+    entities:
+    - year
   - action: action_get_event_schedule
 
-- story: programma del GP - chiedi GP e rispondi
+- story: programma del GP - chiedi GP
+  steps:
+  - intent: ask_event_schedule
+    entities:
+    - year
+  - action: utter_ask_gp
+  - intent: inform
+    entities:
+    - gp
+  - action: action_get_event_schedule
+
+- story: programma del GP - chiedi GP e anno
   steps:
   - intent: ask_event_schedule
   - action: utter_ask_gp
   - intent: inform
+    entities:
+    - gp
+  - action: utter_ask_year
+  - intent: inform
+    entities:
+    - year
   - action: action_get_event_schedule
 
 - story: vincitore della gara - domanda completa
   steps:
   - intent: ask_race_winner
     entities:
-    - gp: "Italian Grand Prix"
-    - year: "2022"
+    - gp
+    - year
   - action: action_get_race_winner
 
 - story: vincitore della gara - chiedi anno
   steps:
   - intent: ask_race_winner
     entities:
-    - gp: "Italian Grand Prix"
+    - gp
   - action: utter_ask_year
   - intent: inform
   - action: action_get_race_winner
@@ -70,7 +91,7 @@ stories:
   steps:
   - intent: ask_race_winner
     entities:
-    - year: "2021"
+    - year
   - action: utter_ask_gp
   - intent: inform
   - action: action_get_race_winner
@@ -83,14 +104,6 @@ stories:
   - action: utter_ask_year
   - intent: inform
   - action: action_get_race_winner
-
-- story: giro veloce del pilota
-  steps:
-  - intent: ask_fastest_lap
-  - action: utter_ask_gp
-  - action: utter_ask_year
-  - action: utter_ask_driver
-  - action: action_get_fastest_lap
 
 - story: meteo del GP
   steps:
@@ -205,3 +218,27 @@ stories:
   steps:
   - intent: greet
   - action: utter_greet
+
+- story: fastest lap form happy path
+  steps:
+  - intent: ask_fastest_lap
+  - action: fastest_lap_form
+  - active_loop: fastest_lap_form
+  - slot_was_set:
+      - requested_slot: gp
+  - intent: inform
+    entities:
+      - gp: "British Grand Prix"
+  - slot_was_set:
+      - gp: "British Grand Prix"
+  - slot_was_set:
+      - requested_slot: year
+  - intent: inform
+    entities:
+      - year: "2023"
+  - slot_was_set:
+      - year: "2023"
+  - slot_was_set:
+      - requested_slot: null
+  - active_loop: null
+  - action: action_get_fastest_lap

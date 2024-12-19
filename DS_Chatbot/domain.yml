@@ -17,6 +17,11 @@ intents:
 channels:
   - telegram
   - rest
+forms:
+  fastest_lap_form:
+    required_slots:
+      - gp
+      - year
 
 actions:
   - action_get_event_info
@@ -29,7 +34,9 @@ actions:
   - action_ask_missing_year
   - utter_ask_year
   - action_compare_telemetry
-  - action_show_speed_map
+  - action_show_speed_map  - utter_ask_gp
+  - action_reset_slots
+  - validate_fastest_lap_form
 
 responses:
 
@@ -56,11 +63,13 @@ responses:
   - text: "Per quale pilota vuoi sapere le informazioni?"
 
   utter_ask_gp:
-  - text: "Per quale GP vuoi informazioni?"
+  - text: "Per quale GP vuoi sapere il giro più veloce?"
 
   utter_ask_year:
-  - text: "Quale anno ti interessa?"
+  - text: "Per quale anno?"
 
+  utter_stop:
+    - text: "Va bene, interrompo la richiesta. Posso aiutarti con qualcos'altro?"
 
 entities:
   - gp
@@ -76,6 +85,10 @@ slots:
     mappings:
     - type: from_entity
       entity: gp
+    - type: from_text
+      conditions:
+      - active_loop: fastest_lap_form
+        requested_slot: gp
   year:
     type: text
     mappings:
@@ -83,7 +96,7 @@ slots:
       entity: year
     - type: from_text
       conditions:
-      - active_loop: null
+      - active_loop: fastest_lap_form
         requested_slot: year
   session:
     type: text
@@ -122,6 +135,23 @@ slots:
     influence_conversation: true
     mappings:
       - type: custom
+
+rules:
+  - rule: Activate fastest lap form
+    steps:
+    - intent: ask_fastest_lap
+    - action: fastest_lap_form
+    - active_loop: fastest_lap_form
+
+  - rule: Submit fastest lap form
+    condition:
+    - active_loop: fastest_lap_form
+    steps:
+    - action: fastest_lap_form
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: null
+    - action: action_get_fastest_lap
 
 
 

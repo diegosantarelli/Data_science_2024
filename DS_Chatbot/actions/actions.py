@@ -8,6 +8,9 @@ from typing import Dict, Any, List, Text
 import sys
 import os
 import io
+import pandas as pd
+from rasa_sdk.forms import FormValidationAction
+from rasa_sdk.types import DomainDict
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -431,13 +434,11 @@ class ActionGetRaceWinner(Action):
             total_time = str(winner['totalRaceTime']).replace('0 days ', '')
             fastest_lap = str(winner['fastestLapTime']).replace('0 days ', '')
             
-            # Costruisci il messaggio di risposta
+            # Costruisci il messaggio di risposta SENZA il giro veloce
             message = (
                 f"Il vincitore del GP di {matched_gp} nel {year} è stato {winner_name} ({nationality}) del team {team_name}.\n"
                 f"È partito dalla {grid_position}ª posizione, ha completato {laps} giri "
-                f"con un tempo totale di {total_time}.\n"
-                f"Il suo giro più veloce è stato {fastest_lap} "
-                f"con una velocità media di {avg_speed:.3f} km/h."
+                f"con un tempo totale di {total_time}."
             )
             
             dispatcher.utter_message(text=message)
@@ -724,71 +725,60 @@ class ActionGetWeatherInfo(Action):
 
 
 class ActionGetFastestLap(Action):
-    def name(self) -> str:
+    def name(self) -> Text:
         return "action_get_fastest_lap"
 
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
-            domain: dict) -> list:
-        # Extract entities from the latest message
-        latest_message = tracker.latest_message
-        text = latest_message.get('text', '').lower()
-        entities = latest_message.get('entities', [])
+            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
-        # Get GP, year and driver from entities
-        gp = None
-        year = None
-        driver = None
+        # Ottieni i valori degli slot dalla form
+        gp = tracker.get_slot("gp")
+        year = tracker.get_slot("year")
         
-        for entity in entities:
-            if entity['entity'] == 'gp':
-                gp = entity['value']
-            elif entity['entity'] == 'year':
-                year = entity['value']
-            elif entity['entity'] == 'driver':
-                driver = entity['value']
-
-        # Gestione dei casi mancanti
-        missing_info = []
-        if not gp:
-            missing_info.append("utter_ask_gp")
-        if not year:
-            missing_info.append("utter_ask_year")
-        if not driver:
-            missing_info.append("utter_ask_driver")
-            
-        if missing_info:
-            for response in missing_info:
-                dispatcher.utter_message(response=response)
-            return []
-
         try:
-            # Get list of available events for that year
-            schedule = fastf1.get_event_schedule(int(year))
+            year_int = int(year)
+            # Ottieni la lista dei GP validi per quell'anno
+            schedule = fastf1.get_event_schedule(year_int)
             valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
             
-            # Check if GP exists
+            # Usa fuzzy matching per trovare il GP più simile
             gp_lower = gp.lower()
-            valid_gp = any(gp_lower in event.lower() for event in valid_events)
+            best_match = process.extractOne(gp_lower, valid_events, scorer=fuzz.ratio)
             
-            if not valid_gp:
+            if best_match and best_match[1] > 60:  # Se la similarità è > 60%
+                matched_gp = best_match[0]
+                session = fastf1.get_session(year_int, matched_gp, 'R')
+                session.load(laps=True, telemetry=False, weather=False)
+                
+                fastest_lap = session.laps.pick_fastest()
+                if not fastest_lap.empty and 'LapTime' in fastest_lap and 'DriverNumber' in fastest_lap:
+                    driver_number = fastest_lap['DriverNumber']
+                    driver_info = session.get_driver(driver_number)
+                    driver_name = f"{driver_info['FirstName']} {driver_info['LastName']}"
+                    lap_time = fastest_lap['LapTime']
+                    
+                    if hasattr(lap_time, 'total_seconds'):
+                        seconds = lap_time.total_seconds()
+                    else:
+                        seconds = float(lap_time)
+                        
+                    minutes = int(seconds // 60)
+                    remaining_seconds = seconds % 60
+                    response = f"Il giro più veloce nel GP di {matched_gp} del {year} è stato fatto da {driver_name} con {minutes}:{remaining_seconds:.3f}"
+                    dispatcher.utter_message(text=response)
+                else:
+                    dispatcher.utter_message(text="Non ho trovato giri validi per questa gara.")
+            else:
                 dispatcher.utter_message(
                     text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
                          f"Ecco i GP disponibili: {', '.join(valid_events)}."
                 )
-                return []
-
-            session = fastf1.get_session(int(year), gp, "R")
-            session.load()
-            laps = session.laps.pick_driver(driver.upper())
-            fastest_lap = laps.pick_fastest()
-            lap_time = fastest_lap['LapTime']
-            dispatcher.utter_message(
-                text=f"Il giro più veloce di {driver} nel GP di {gp} nel {year} è stato {lap_time}."
-            )
+                
         except Exception as e:
-            dispatcher.utter_message(text=f"Errore nel recupero del giro più veloce: {str(e)}")
-            print(f"Errore generale: {str(e)}")
+            print(f"Errore dettagliato: {str(e)}")
+            dispatcher.utter_message(text="Mi dispiace, non sono riuscito a trovare le informazioni per questo GP.")
+        
         return []
 
 class ActionCompareTelemetry(Action):
@@ -1161,3 +1151,58 @@ class ActionShowSpeedMap(Action):
             print(f"Error: {str(e)}")
             
         return []
+
+class ActionResetSlots(Action):
+    def name(self) -> Text:
+        return "action_reset_slots"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker,
+            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        return [SlotSet("gp", None), SlotSet("year", None)]
+
+class ValidateFastestLapForm(FormValidationAction):
+    def name(self) -> Text:
+        return "validate_fastest_lap_form"
+
+    def validate_gp(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        try:
+            # Verifica che il GP sia valido
+            schedule = fastf1.get_event_schedule(2023)
+            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
+            
+            best_match = process.extractOne(slot_value.lower(), valid_events, scorer=fuzz.ratio)
+            if best_match and best_match[1] > 60:
+                return {"gp": best_match[0]}
+            else:
+                dispatcher.utter_message(
+                    text=f"'{slot_value}' non è un GP valido. Ecco i GP disponibili: {', '.join(valid_events)}."
+                )
+                return {"gp": None}
+        except Exception as e:
+            dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
+            return {"gp": None}
+
+    def validate_year(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        try:
+            year = int(slot_value)
+            if 1950 <= year <= 2024:
+                return {"year": str(year)}
+            else:
+                dispatcher.utter_message(text=f"Per favore inserisci un anno tra 1950 e 2024.")
+                return {"year": None}
+        except ValueError:
+            dispatcher.utter_message(text="Per favore inserisci un anno valido.")
+            return {"year": None}
