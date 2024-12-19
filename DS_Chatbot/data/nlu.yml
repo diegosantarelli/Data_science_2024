@@ -63,23 +63,30 @@ nlu:
 
 - intent: ask_weather_info
   examples: |
+    # Domande complete (con GP e anno)
     - Quali erano le condizioni meteo del [Italian Grand Prix](gp) nel [2023](year)?
-    - Quali erano le condizioni meteo dell'[Italian Grand Prix](gp) nel [2021](year)?
     - Dimmi il meteo del [Bahrain Grand Prix](gp) nel [2022](year)
     - Che tempo faceva durante il [São Paulo Grand Prix](gp) nel [2021](year)?
-    - Com'era il meteo nel [Abu Dhabi Grand Prix](gp) del [2023](year)?
+    - Meteo del [Bahrain Grand Prix](gp) nel [2023](year)
+    
+    # Domande con solo GP (manca anno)
     - Qual era la temperatura al [Bahrain Grand Prix](gp)?
     - Com'era il meteo del [Australian Grand Prix](gp)?
-    - Che tempo ha fatto al [Monaco Grand Prix](gp) nel [2022](year)?
     - Che condizioni meteo c'erano al [Italian Grand Prix](gp)?
-    - Meteo del [Bahrain Grand Prix](gp) nel [2023](year)
-    - Temperatura durante il [Miami Grand Prix](gp) nel [2022](year)
-    - Che tempo faceva durante le [qualifiche](session) del [Italian Grand Prix](gp) nel [2021](year)?
-    - Condizioni meteo durante la [gara](session) del [Monaco Grand Prix](gp) nel [2022](year)
-    - Meteo nelle [prove libere 1](session) del [Bahrain Grand Prix](gp) nel [2023](year)
-    - Temperatura durante la [sprint](session) del [Austrian Grand Prix](gp) nel [2022](year)
-    - Com'era il tempo nelle [prove libere 2](session) del [Miami Grand Prix](gp)?
-    - Che condizioni c'erano in [qualifica](session) a [Monza](gp)?
+    - Com'era il tempo al [Monaco Grand Prix](gp)?
+    - Dimmi il meteo del [Abu Dhabi Grand Prix](gp)
+    
+    # Domande con solo anno (manca GP)
+    - Quali erano le condizioni meteo nel [2021](year)?
+    - Com'era il tempo nel [2023](year)?
+    - Che meteo c'era nel [2022](year)?
+    
+    # Domande senza GP e anno
+    - Quali erano le condizioni meteo?
+    - Com'era il tempo?
+    - Che meteo c'era?
+    - Dimmi il meteo
+    - Che tempo faceva?
 
 - intent: ask_fastest_lap
   examples: |
@@ -100,20 +107,18 @@ nlu:
     - [2023](year)
     - [Australian Grand Prix](gp)
     - [Monaco Grand Prix](gp)
-    - Sprint
-    - sprint
-    - Gara
-    - gara
-    - Qualifiche
-    - qualifiche
+    - [Prove Libere 1](session)
+    - [Prove Libere 2](session)
+    - [Prove Libere 3](session)
+    - [Qualifiche](session)
+    - [Sprint](session)
+    - [Gara](session)
     - Prove Libere 1
-    - prove libere 1
     - Prove Libere 2
-    - prove libere 2
     - Prove Libere 3
-    - prove libere 3
-    - Sprint Shootout
-    - sprint shootout
+    - Qualifiche
+    - Sprint
+    - Gara
 
 
 

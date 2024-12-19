@@ -5,6 +5,7 @@ from fuzzywuzzy import fuzz, process
 import fastf1
 from rasa_sdk.events import SlotSet
 from typing import Dict, Any, List, Text
+import sys
 
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
@@ -454,6 +455,9 @@ class ActionGetWeatherInfo(Action):
         return "action_get_weather_info"
 
     def get_session_identifier(self, session_name: str) -> str:
+        print(f"DEBUG - get_session_identifier - Input session_name: {session_name}", flush=True)
+        sys.stdout.flush()
+        
         session_mapping = {
             'gara': 'R',
             'race': 'R',
@@ -462,14 +466,20 @@ class ActionGetWeatherInfo(Action):
             'qualifying': 'Q',
             'sprint': 'S',
             'prove libere 1': 'FP1',
-            'fp1': 'FP1',
             'prove libere 2': 'FP2',
-            'fp2': 'FP2',
             'prove libere 3': 'FP3',
-            'fp3': 'FP3',
             'sprint shootout': 'SQ'
         }
-        return session_mapping.get(session_name.lower() if session_name else None, 'R')
+        
+        if not session_name:
+            print("DEBUG - session_name is None or empty, returning 'R'", flush=True)
+            sys.stdout.flush()
+            return 'R'
+        
+        session_id = session_mapping.get(session_name.lower(), session_name)
+        print(f"DEBUG - Mapped session_id: {session_id}", flush=True)
+        sys.stdout.flush()
+        return session_id
 
     def get_available_sessions(self, year: str, gp: str) -> list:
         try:
@@ -507,96 +517,88 @@ class ActionGetWeatherInfo(Action):
         intent = latest_message.get('intent', {}).get('name')
         entities = latest_message.get('entities', [])
         
+        # Ottieni i valori attuali degli slot
         gp = tracker.get_slot("gp")
         year = tracker.get_slot("year")
-        session_name = tracker.get_slot("session")
         
-        # Estrai entità dal messaggio
+        print(f"DEBUG - Initial slots: gp={gp}, year={year}")
+        print(f"DEBUG - Latest message: {text}")
+        print(f"DEBUG - Intent: {intent}")
+        print(f"DEBUG - Entities: {entities}")
+        
+        # Salva il valore originale dell'anno
+        original_year = year
+        
+        # Estrai solo le entità pertinenti
         for entity in entities:
             if entity['entity'] == 'gp':
                 gp = entity['value']
+                print(f"DEBUG - Found GP entity: {gp}")
             elif entity['entity'] == 'year':
                 year = entity['value']
-            elif entity['entity'] == 'session':
-                session_name = entity['value']
-
-        # Se è una risposta con l'anno
-        if intent == 'inform' and text.isdigit():
-            year = text
-            if gp:  # Se abbiamo già il GP
-                if not session_name:  # Se non abbiamo la sessione, mostra tutte le sessioni disponibili
-                    available_sessions = self.get_available_sessions(year, gp)
-                    if available_sessions:
-                        dispatcher.utter_message(
-                            text=f"Per il GP di {gp} nel {year} sono disponibili queste sessioni:\n" +
-                                 "\n".join(f"- {session}" for session in available_sessions) +
-                                 "\nPer quale sessione vuoi le informazioni meteo?"
-                        )
-                        return [SlotSet("year", year), SlotSet("gp", gp)]
-                return self.get_weather_info(dispatcher, gp, year, session_name)
-            return [SlotSet("year", year)]
-
-        # Se è una risposta con una sessione
-        if intent == 'inform' and not text.isdigit() and gp and year:
-            session_input = text.strip().lower()
-            available_sessions = self.get_available_sessions(year, gp)
-            
-            # Verifica se la sessione richiesta è disponibile
-            session_found = False
-            matched_session = None
-            
-            for available_session in available_sessions:
-                if session_input == available_session.lower() or session_input in available_session.lower():
-                    matched_session = available_session
-                    session_found = True
-                    break
-            
-            if not session_found:
-                dispatcher.utter_message(
-                    text=f"Mi dispiace, la sessione '{text.strip()}' non è disponibile per il GP di {gp} nel {year}.\n"
-                         f"Le sessioni disponibili sono:\n" +
-                         "\n".join(f"- {session}" for session in available_sessions)
-                )
-                return [SlotSet("year", year), SlotSet("gp", gp)]
-            
-            try:
-                session_id = self.get_session_identifier(matched_session)
-                session = fastf1.get_session(int(year), gp, session_id)
-                session.load()
-                
-                weather_info = self.get_weather_details(session)
-                response = f"Condizioni meteo durante la {matched_session} del GP di {gp} nel {year}:\n{weather_info}"
-                
-                dispatcher.utter_message(text=response)
-                return []
-                
-            except Exception as e:
-                dispatcher.utter_message(text=f"Mi dispiace, non riesco a trovare i dati meteo per questa sessione.")
-                print(f"Errore: {str(e)}")
-                return [SlotSet("year", year), SlotSet("gp", gp)]
+                print(f"DEBUG - Found year entity: {year}")
+        
+        # Ripristina l'anno originale se non è stata trovata una nuova entità year
+        if not any(entity['entity'] == 'year' for entity in entities):
+            year = original_year
+        
+        print(f"DEBUG - After entity extraction: gp={gp}, year={year}")
 
         # Se non abbiamo il GP, chiediamolo
         if not gp:
-            dispatcher.utter_message(text="Per quale GP vuoi informazioni?")
-            return [SlotSet("year", year), SlotSet("session", session_name)] if year or session_name else []
+            print("DEBUG - No GP found, asking for it")
+            dispatcher.utter_message(text="Per quale GP vuoi sapere le informazioni meteorologiche?")
+            return [SlotSet("year", year)] if year else []
 
         # Se non abbiamo l'anno, chiediamolo
         if not year:
-            dispatcher.utter_message(response="utter_ask_year")
-            return [SlotSet("gp", gp), SlotSet("session", session_name)] if gp or session_name else []
+            print("DEBUG - No year found, asking for it")
+            dispatcher.utter_message(text=f"Per quale anno vuoi sapere le condizioni meteo del GP di {gp}?")
+            return [SlotSet("gp", gp)]
 
-        # Se abbiamo GP e anno ma non la sessione, mostra le sessioni disponibili
-        if not session_name:
-            available_sessions = self.get_available_sessions(year, gp)
-            if available_sessions:
-                dispatcher.utter_message(
-                    text=f"Per il GP di {gp} nel {year} sono disponibili queste sessioni:\n" +
-                         "\n".join(f"- {session}" for session in available_sessions) +
-                         "\nPer quale sessione vuoi le informazioni meteo?"
-                )
-                return [SlotSet("year", year), SlotSet("gp", gp)]
+        # Se abbiamo entrambi GP e anno, procedi con il recupero dei dati meteo
+        if gp and year:
+            try:
+                print(f"DEBUG - Attempting to get available sessions for GP={gp}, year={year}")
+                available_sessions = self.get_available_sessions(year, gp)
+                print(f"DEBUG - Available sessions: {available_sessions}")
+                
+                if available_sessions:
+                    # Ottieni il riepilogo meteo del weekend
+                    print("DEBUG - Getting weather summary")
+                    weekend_summary = self.get_gp_weather_summary(year, gp)
+                    response = weekend_summary + "\nDETTAGLI PER SESSIONE:\n"
 
-        return self.get_weather_info(dispatcher, gp, year, session_name)
+                    # Ottieni i dati meteo per ogni sessione
+                    for session_name in available_sessions:
+                        try:
+                            session_type = self.get_session_identifier(session_name)
+                            print(f"DEBUG - Processing session {session_name} (type: {session_type})")
+                            session = fastf1.get_session(int(year), gp, session_type)
+                            session.load()
+                            
+                            weather_info = self.get_weather_details(session)
+                            response += f"\n{session_name}:\n{weather_info}\n"
+                            response += "-" * 40 + "\n"
+                            
+                        except Exception as e:
+                            print(f"DEBUG - Error getting weather for session {session_name}: {str(e)}")
+                            response += f"\n{session_name}: Dati meteo non disponibili\n"
+                            response += "-" * 40 + "\n"
+
+                    dispatcher.utter_message(text=response)
+                    return [SlotSet("gp", gp), SlotSet("year", year)]
+                else:
+                    print(f"DEBUG - No available sessions found for GP={gp}, year={year}")
+                    dispatcher.utter_message(text=f"Mi dispiace, non trovo sessioni disponibili per il GP di {gp} nel {year}.")
+                    return []
+
+            except Exception as e:
+                print(f"DEBUG - General error: {str(e)}")
+                dispatcher.utter_message(text=f"Mi dispiace, c'è stato un errore nel recupero dei dati meteo.")
+                return []
+
+        return []
 
     def get_weather_info(self, dispatcher: CollectingDispatcher, gp: str, year: str, session_name: str = None):
         try:
@@ -622,24 +624,36 @@ class ActionGetWeatherInfo(Action):
         if weather.empty:
             return "Dati meteo non disponibili per questa sessione."
         
+        # Valori medi
         temp_avg = weather['AirTemp'].mean()
-        humidity_avg = weather['Humidity'].mean()
-        pressure_avg = weather['Pressure'].mean()
-        track_temp_avg = weather['TrackTemp'].mean()
-        wind_speed_avg = weather['WindSpeed'].mean()
+        temp_min = weather['AirTemp'].min()
+        temp_max = weather['AirTemp'].max()
         
-        # Calcola la direzione del vento predominante
+        track_temp_avg = weather['TrackTemp'].mean()
+        track_temp_min = weather['TrackTemp'].min()
+        track_temp_max = weather['TrackTemp'].max()
+        
+        humidity_avg = weather['Humidity'].mean()
+        humidity_min = weather['Humidity'].min()
+        humidity_max = weather['Humidity'].max()
+        
+        pressure_avg = weather['Pressure'].mean()
+        
+        wind_speed_avg = weather['WindSpeed'].mean()
+        wind_speed_max = weather['WindSpeed'].max()
+        
+        # Direzione del vento predominante
         wind_dir = weather['WindDirection'].mode().iloc[0] if not weather['WindDirection'].empty else None
         wind_dir_text = self.get_wind_direction_text(wind_dir) if wind_dir is not None else "N/A"
         
         # Verifica se c'è stata pioggia
         rain = "Sì" if weather['Rainfall'].any() else "No"
         
-        return (f"Temperatura aria: {temp_avg:.1f}°C\n"
-                f"Temperatura pista: {track_temp_avg:.1f}°C\n"
-                f"Umidità: {humidity_avg:.1f}%\n"
+        return (f"Temperatura aria: {temp_avg:.1f}°C (min: {temp_min:.1f}°C, max: {temp_max:.1f}°C)\n"
+                f"Temperatura pista: {track_temp_avg:.1f}°C (min: {track_temp_min:.1f}°C, max: {track_temp_max:.1f}°C)\n"
+                f"Umidità: {humidity_avg:.1f}% (min: {humidity_min:.1f}%, max: {humidity_max:.1f}%)\n"
                 f"Pressione: {pressure_avg:.1f} mbar\n"
-                f"Vento: {wind_speed_avg:.1f} m/s, direzione {wind_dir_text}\n"
+                f"Vento: media {wind_speed_avg:.1f} m/s (max: {wind_speed_max:.1f} m/s), direzione {wind_dir_text}\n"
                 f"Pioggia: {rain}")
 
     def get_wind_direction_text(self, degrees: int) -> str:
@@ -647,6 +661,63 @@ class ActionGetWeatherInfo(Action):
                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
         index = round(degrees / (360 / len(directions))) % len(directions)
         return f"{degrees}° ({directions[index]})"
+
+    def get_gp_weather_summary(self, year: str, gp: str) -> str:
+        try:
+            # Ottieni tutte le sessioni
+            available_sessions = self.get_available_sessions(year, gp)
+            total_sessions = len(available_sessions)
+            sessions_with_rain = 0
+            
+            # Statistiche temperatura
+            all_temps = []
+            all_track_temps = []
+            all_humidity = []
+            all_pressure = []
+            all_wind_speeds = []
+            
+            for session_name in available_sessions:
+                try:
+                    session_type = self.get_session_identifier(session_name)
+                    session = fastf1.get_session(int(year), gp, session_type)
+                    session.load()
+                    
+                    weather = session.weather_data
+                    if not weather.empty:
+                        # Controlla pioggia
+                        if weather['Rainfall'].any():
+                            sessions_with_rain += 1
+                        
+                        # Raccogli tutti i dati meteo
+                        all_temps.extend(weather['AirTemp'].tolist())
+                        all_track_temps.extend(weather['TrackTemp'].tolist())
+                        all_humidity.extend(weather['Humidity'].tolist())
+                        all_pressure.extend(weather['Pressure'].tolist())
+                        all_wind_speeds.extend(weather['WindSpeed'].tolist())
+                        
+                except Exception as e:
+                    print(f"Errore nel recupero dati per {session_name}: {str(e)}")
+                    continue
+            
+            # Calcola le statistiche del weekend
+            rain_percentage = (sessions_with_rain / total_sessions) * 100 if total_sessions > 0 else 0
+            
+            summary = f"Le informazioni meteorologiche relative al GP di {gp} del {year} sono le seguenti:\n"
+            summary += "-" * 40 + "\n"
+            summary += "RIEPILOGO DEL WEEKEND:\n"
+            summary += f"Temperatura aria: min {min(all_temps):.1f}°C, max {max(all_temps):.1f}°C, media {sum(all_temps)/len(all_temps):.1f}°C\n"
+            summary += f"Temperatura pista: min {min(all_track_temps):.1f}°C, max {max(all_track_temps):.1f}°C, media {sum(all_track_temps)/len(all_track_temps):.1f}°C\n"
+            summary += f"Umidità: min {min(all_humidity):.1f}%, max {max(all_humidity):.1f}%, media {sum(all_humidity)/len(all_humidity):.1f}%\n"
+            summary += f"Pressione: min {min(all_pressure):.1f} mbar, max {max(all_pressure):.1f} mbar, media {sum(all_pressure)/len(all_pressure):.1f} mbar\n"
+            summary += f"Velocità vento: min {min(all_wind_speeds):.1f} m/s, max {max(all_wind_speeds):.1f} m/s, media {sum(all_wind_speeds)/len(all_wind_speeds):.1f} m/s\n"
+            summary += f"Sessioni con pioggia: {sessions_with_rain} su {total_sessions} ({rain_percentage:.1f}%)\n"
+            summary += "-" * 40 + "\n"
+            
+            return summary
+            
+        except Exception as e:
+            print(f"Errore nel calcolo del riepilogo meteo: {str(e)}")
+            return f"Mi dispiace, non è stato possibile calcolare il riepilogo meteo del GP di {gp} del {year}."
 
 
 

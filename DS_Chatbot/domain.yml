@@ -58,7 +58,6 @@ responses:
 entities:
   - gp
   - year
-  - driver
   - session
 
 slots:
@@ -76,7 +75,15 @@ slots:
       conditions:
       - active_loop: null
         requested_slot: year
-
+  session:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: session
+    - type: from_text
+      conditions:
+      - active_loop: null
+        requested_slot: session
   gp_valid:
     type: bool
     influence_conversation: true

@@ -96,7 +96,13 @@ stories:
   steps:
   - intent: ask_weather_info
   - action: utter_ask_gp
+  - intent: inform
+    entities:
+    - gp: "Italian Grand Prix"
   - action: utter_ask_year
+  - intent: inform
+    entities:
+    - year: "2021"
   - action: action_get_weather_info
 
 - story: meteo del GP con slot impostati
@@ -122,4 +128,47 @@ stories:
     - gp: "Italian Grand Prix"
   - action: utter_ask_year
   - intent: inform
+  - action: action_get_weather_info
+
+- story: ask weather info with missing gp and year
+  steps:
+  - intent: ask_weather_info
+  - action: utter_ask_gp
+  - intent: inform
+    entities:
+    - gp: "Italian Grand Prix"
+  - action: utter_ask_year
+  - intent: inform
+    entities:
+    - year: "2021"
+  - action: action_get_weather_info
+
+- story: meteo del GP con anno fornito prima
+  steps:
+  - intent: ask_weather_info
+    entities:
+    - year: "2021"
+  - action: utter_ask_gp
+  - intent: inform
+    entities:
+    - gp: "Italian Grand Prix"
+  - action: action_get_weather_info
+
+- story: meteo del GP con GP fornito prima
+  steps:
+  - intent: ask_weather_info
+    entities:
+    - gp: "Italian Grand Prix"
+  - action: utter_ask_year
+  - intent: inform
+    entities:
+    - year: "2021"
+  - action: action_get_weather_info
+
+- story: meteo del GP con entrambe le entità
+  steps:
+  - intent: ask_weather_info
+    entities:
+    - gp: "Italian Grand Prix"
+    - year: "2021"
   - action: action_get_weather_info
