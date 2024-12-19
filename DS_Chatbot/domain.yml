@@ -59,6 +59,7 @@ entities:
   - gp
   - year
   - driver
+  - session
 
 slots:
   gp:

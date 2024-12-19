@@ -106,3 +106,20 @@ stories:
       - gp
       - year
   - action: action_get_weather_info
+
+- story: meteo del GP con anno
+  steps:
+  - intent: ask_weather_info
+    entities:
+    - gp: "Italian Grand Prix"
+    - year: "2021"
+  - action: action_get_weather_info
+
+- story: meteo del GP senza anno
+  steps:
+  - intent: ask_weather_info
+    entities:
+    - gp: "Italian Grand Prix"
+  - action: utter_ask_year
+  - intent: inform
+  - action: action_get_weather_info
