@@ -28,27 +28,27 @@ nlu:
 
 - intent: ask_event_schedule
   examples: |
-    - Qual è il programma del GP di [Azerbaijan Grand Prix](gp) nel [2023](year)?
-    - Dammi il programma delle sessioni del GP di [Dutch Grand Prix](gp)
-    - Mostrami gli orari del GP di [Monaco](gp)
-    - A che ora sono le sessioni del GP di [Monza](gp)?
-    - Programma completo del GP di [Spa](gp) [2023](year)
+    - Qual è il programma del [Azerbaijan Grand Prix](gp) nel [2023](year)?
+    - Dammi il programma delle sessioni del [Dutch Grand Prix](gp)
+    - Mostrami gli orari del [Monaco](gp)
+    - A che ora sono le sessioni del [Monza](gp)?
+    - Programma completo del [Spa](gp) [2023](year)
     - Orari delle sessioni per [Silverstone](gp)
 
 
 - intent: ask_race_winner
   examples: |
     # Domande complete (con GP e anno)
-    - Chi ha vinto il GP di [Italian Grand Prix](gp) nel [2022](year)?
-    - Vincitore del GP di [Miami Grand Prix](gp) [2023](year)
+    - Chi ha vinto il [Italian Grand Prix](gp) nel [2022](year)?
+    - Vincitore del [Miami Grand Prix](gp) [2023](year)
     
     # Domande con solo GP (manca anno)
-    - Chi è stato il vincitore del GP di [Azerbaijan Grand Prix](gp)?
-    - Chi ha trionfato nel [Dutch Grand Prix](gp)?
-    - Chi è arrivato primo nel [Monaco Grand Prix](gp)?
-    - Chi ha vinto il GP di [Abu Dhabi Grand Prix](gp)?
-    - Dimmi chi ha vinto il GP di [Emilia Romagna Grand Prix](gp)
-    - Chi è il vincitore del GP di [Bahrain Grand Prix](gp)?
+    - Chi è stato il vincitore del [Azerbaijan Grand Prix](gp)?
+    - Chi ha trionfato [Dutch Grand Prix](gp)?
+    - Chi è arrivato primo [Monaco Grand Prix](gp)?
+    - Chi ha vinto [Abu Dhabi Grand Prix](gp)?
+    - Dimmi chi ha vinto il [Emilia Romagna Grand Prix](gp)
+    - Chi è il vincitore del [Bahrain Grand Prix](gp)?
     
     # Domande con solo anno (manca GP)
     - Chi ha vinto nel [2021](year)?
@@ -63,12 +63,23 @@ nlu:
 
 - intent: ask_weather_info
   examples: |
-    - Quali erano le condizioni meteo del GP di [Monza](gp) nel [2023](year)?
-    - Dimmi il meteo del GP di [Imola](gp) nel [2022](year).
-    - Che tempo faceva durante il GP di [Silverstone](gp) nel [2021](year)?
-    - Com'era il meteo nel GP di [Spa](gp) del [2023](year)?
-    - Qual era la temperatura al GP di [Monza](gp)?
-    - Com'era il meteo del GP di [Imola](gp)?
+    - Quali erano le condizioni meteo del [Italian Grand Prix](gp) nel [2023](year)?
+    - Quali erano le condizioni meteo dell'[Italian Grand Prix](gp) nel [2021](year)?
+    - Dimmi il meteo del [Bahrain Grand Prix](gp) nel [2022](year)
+    - Che tempo faceva durante il [São Paulo Grand Prix](gp) nel [2021](year)?
+    - Com'era il meteo nel [Abu Dhabi Grand Prix](gp) del [2023](year)?
+    - Qual era la temperatura al [Bahrain Grand Prix](gp)?
+    - Com'era il meteo del [Australian Grand Prix](gp)?
+    - Che tempo ha fatto al [Monaco Grand Prix](gp) nel [2022](year)?
+    - Che condizioni meteo c'erano al [Italian Grand Prix](gp)?
+    - Meteo del [Bahrain Grand Prix](gp) nel [2023](year)
+    - Temperatura durante il [Miami Grand Prix](gp) nel [2022](year)
+    - Che tempo faceva durante le [qualifiche](session) del [Italian Grand Prix](gp) nel [2021](year)?
+    - Condizioni meteo durante la [gara](session) del [Monaco Grand Prix](gp) nel [2022](year)
+    - Meteo nelle [prove libere 1](session) del [Bahrain Grand Prix](gp) nel [2023](year)
+    - Temperatura durante la [sprint](session) del [Austrian Grand Prix](gp) nel [2022](year)
+    - Com'era il tempo nelle [prove libere 2](session) del [Miami Grand Prix](gp)?
+    - Che condizioni c'erano in [qualifica](session) a [Monza](gp)?
 
 - intent: ask_fastest_lap
   examples: |
@@ -89,6 +100,20 @@ nlu:
     - [2023](year)
     - [Australian Grand Prix](gp)
     - [Monaco Grand Prix](gp)
+    - Sprint
+    - sprint
+    - Gara
+    - gara
+    - Qualifiche
+    - qualifiche
+    - Prove Libere 1
+    - prove libere 1
+    - Prove Libere 2
+    - prove libere 2
+    - Prove Libere 3
+    - prove libere 3
+    - Sprint Shootout
+    - sprint shootout
 
 
 
