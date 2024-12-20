@@ -12,6 +12,9 @@ import pandas as pd
 from rasa_sdk.forms import FormValidationAction
 from rasa_sdk.types import DomainDict
 
+import asyncio
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
         return "action_get_circuit_info"

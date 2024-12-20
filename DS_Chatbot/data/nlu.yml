@@ -60,23 +60,16 @@ nlu:
 
 - intent: ask_race_winner
   examples: |
-    # Domande complete (con GP e anno)
     - Chi ha vinto il [Italian Grand Prix](gp) nel [2022](year)?
     - Vincitore del [Miami Grand Prix](gp) [2023](year)
-    
-    # Domande con solo GP (manca anno)
     - Chi è stato il vincitore del [Azerbaijan Grand Prix](gp)?
-    - Chi ha trionfato [Dutch Grand Prix](gp)?
-    - Chi è arrivato primo [Monaco Grand Prix](gp)?
-    - Chi ha vinto [Abu Dhabi Grand Prix](gp)?
+    - Chi ha trionfato nel [Dutch Grand Prix](gp)?
+    - Chi è arrivato primo nel [Monaco Grand Prix](gp)?
+    - Chi ha vinto il [Abu Dhabi Grand Prix](gp)?
     - Dimmi chi ha vinto il [Emilia Romagna Grand Prix](gp)
     - Chi è il vincitore del [Bahrain Grand Prix](gp)?
-    
-    # Domande con solo anno (manca GP)
     - Chi ha vinto nel [2021](year)?
     - Chi è stato il vincitore nel [2023](year)?
-    
-    # Domande senza GP e anno
     - Chi ha vinto?
     - Chi è stato il vincitore?
     - Chi ha trionfato?

@@ -13,6 +13,7 @@ intents:
   - inform
   - compare_drivers_telemetry
   - show_speed_map
+  - stop
 
 channels:
   - telegram
@@ -34,7 +35,8 @@ actions:
   - action_ask_missing_year
   - utter_ask_year
   - action_compare_telemetry
-  - action_show_speed_map  - utter_ask_gp
+  - action_show_speed_map
+  - utter_ask_gp
   - action_reset_slots
   - validate_fastest_lap_form
 
