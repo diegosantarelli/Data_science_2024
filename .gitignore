@@ -26,3 +26,5 @@ __pycache__/
 DS_NLP2/arxiv.csv
 DS_NLP2/arxiv-metadata-oai-snapshot.json
 DS_NLP2/JSONtoCSV.py
+.env
+
