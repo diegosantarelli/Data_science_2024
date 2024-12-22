@@ -12,6 +12,20 @@ import pandas as pd
 from rasa_sdk.forms import FormValidationAction
 from rasa_sdk.types import DomainDict
 
+from dotenv import load_dotenv
+import os
+
+# Carica le variabili d'ambiente
+load_dotenv()
+
+# Recupera i token
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
+
+# Usa i token nel tuo codice
+print(f"Slack Bot Token: {SLACK_BOT_TOKEN}")
+print(f"Slack Signing Secret: {SLACK_SIGNING_SECRET}")
+
 import asyncio
 asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
