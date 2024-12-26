@@ -46,5 +46,57 @@ rules:
   - intent: show_speed_map
   - action: action_show_speed_map
 
+- rule: Say hello anytime the user greets
+  steps:
+  - intent: greet
+  - action: utter_greet
+
+- rule: Say goodbye anytime the user says goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+
+- rule: Answer the bot challenge
+  steps:
+  - intent: bot_challenge
+  - action: utter_bot_challenge
+
+- rule: Handle circuit info request
+  condition:
+  - active_loop: null
+  steps:
+  - intent: ask_circuit_info
+  - action: action_get_circuit_info
+  - action: action_listen
+
+- rule: Handle complete event schedule request
+  condition:
+  - slot_was_set:
+    - gp: any
+    - year: any
+  steps:
+  - intent: ask_event_schedule
+  - action: action_get_event_schedule
+
+- rule: Handle complete weather info request
+  condition:
+  - slot_was_set:
+    - gp: any
+    - year: any
+  steps:
+  - intent: ask_weather_info
+  - action: action_get_weather_info
+
+- rule: Handle complete telemetry comparison
+  condition:
+  - slot_was_set:
+    - driver_1: any
+    - driver_2: any
+    - gp: any
+    - year: any
+  steps:
+  - intent: compare_drivers_telemetry
+  - action: action_compare_telemetry
+
 
 

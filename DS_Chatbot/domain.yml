@@ -14,6 +14,8 @@ intents:
   - compare_drivers_telemetry
   - show_speed_map
   - stop
+  - chitchat
+  - faq
 
 channels:
   - telegram
@@ -23,6 +25,16 @@ forms:
     required_slots:
       - gp
       - year
+  event_schedule_form:
+    required_slots:
+      - gp
+      - year
+  telemetry_form:
+    required_slots:
+      - gp
+      - year
+      - driver_1
+      - driver_2
 
 actions:
   - action_get_event_info
@@ -65,13 +77,31 @@ responses:
   - text: "Per quale pilota vuoi sapere le informazioni?"
 
   utter_ask_gp:
-  - text: "Per quale GP vuoi sapere il giro più veloce?"
+    - text: "Per quale GP vuoi sapere il programma delle sessioni?"
 
   utter_ask_year:
-  - text: "Per quale anno?"
+    - text: "Per quale anno vuoi sapere il programma?"
 
   utter_stop:
     - text: "Va bene, interrompo la richiesta. Posso aiutarti con qualcos'altro?"
+
+  utter_chitchat/come_stai:
+    - text: "Sto bene, grazie! Pronto ad aiutarti con la Formula 1!"
+    - text: "Tutto bene, grazie della domanda! Come posso aiutarti?"
+
+  utter_chitchat/chi_sei:
+    - text: "Sono un assistente specializzato in Formula 1, pronto ad aiutarti!"
+    - text: "Sono il tuo assistente F1, posso aiutarti con informazioni sui circuiti e le gare!"
+
+  utter_faq/regole:
+    - text: "La Formula 1 ha un complesso set di regole. Quale aspetto specifico ti interessa?"
+
+  utter_faq/punti:
+    - text: "Nel sistema di punteggio attuale: 1° posto: 25 punti, 2°: 18 punti, 3°: 15 punti, e così via."
+
+  utter_ask_more:
+    - text: "C'è altro che vuoi sapere?"
+    - text: "Posso aiutarti con qualcos'altro?"
 
 entities:
   - gp
@@ -84,22 +114,18 @@ entities:
 slots:
   gp:
     type: text
+    influence_conversation: true
     mappings:
     - type: from_entity
       entity: gp
-    - type: from_text
-      conditions:
-      - active_loop: fastest_lap_form
-        requested_slot: gp
+  
   year:
     type: text
+    influence_conversation: true
     mappings:
     - type: from_entity
       entity: year
-    - type: from_text
-      conditions:
-      - active_loop: fastest_lap_form
-        requested_slot: year
+
   session:
     type: text
     mappings:
@@ -124,13 +150,13 @@ slots:
   driver_1:
     type: text
     mappings:
-      - type: from_entity
-        entity: driver_1
+    - type: from_entity
+      entity: driver_1
   driver_2:
     type: text
     mappings:
-      - type: from_entity
-        entity: driver_2
+    - type: from_entity
+      entity: driver_2
 
   requested_slot:
     type: text
@@ -138,22 +164,93 @@ slots:
     mappings:
       - type: custom
 
-rules:
-  - rule: Activate fastest lap form
-    steps:
-    - intent: ask_fastest_lap
-    - action: fastest_lap_form
-    - active_loop: fastest_lap_form
+  fastest_lap_done:
+    type: bool
+    influence_conversation: false
+    mappings:
+      - type: custom
 
-  - rule: Submit fastest lap form
-    condition:
-    - active_loop: fastest_lap_form
+  action_executed:
+    type: bool
+    influence_conversation: false
+    mappings:
+    - type: custom
+
+rules:
+  - rule: Ask circuit info
     steps:
-    - action: fastest_lap_form
+    - intent: ask_circuit_info
+    - action: action_get_circuit_info
+    - action: action_listen
+
+  - rule: Ask event schedule
+    steps:
+    - intent: ask_event_schedule
+    - action: event_schedule_form
+    - active_loop: event_schedule_form
+
+  - rule: Submit event schedule form
+    condition:
+    - active_loop: event_schedule_form
+    steps:
+    - action: event_schedule_form
     - active_loop: null
     - slot_was_set:
         - requested_slot: null
-    - action: action_get_fastest_lap
+    - action: action_get_event_schedule
+    - action: action_listen
+
+  - rule: Get event schedule with missing year
+    condition:
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: year
+    - slot_was_set:
+        - gp: any
+    steps:
+    - intent: inform
+      entities:
+      - year
+    - action: action_get_event_schedule
+    - action: action_listen
+
+  - rule: Get event schedule with missing GP
+    condition:
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: gp
+    - slot_was_set:
+        - year: any
+    steps:
+    - intent: inform
+      entities:
+      - gp
+    - action: action_get_event_schedule
+    - action: action_listen
+
+  - rule: Get event schedule complete
+    condition:
+    - active_loop: null
+    steps:
+    - intent: ask_event_schedule
+    - action: action_get_event_schedule
+
+  - rule: Activate telemetry form
+    steps:
+    - intent: compare_drivers_telemetry
+    - action: telemetry_form
+    - active_loop: telemetry_form
+
+  - rule: Submit telemetry form
+    condition:
+    - active_loop: telemetry_form
+    steps:
+    - action: telemetry_form
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: null
+    - action: action_compare_telemetry
+    - action: action_listen
 
 
 

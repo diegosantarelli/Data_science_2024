@@ -14,6 +14,8 @@ from rasa_sdk.types import DomainDict
 
 from dotenv import load_dotenv
 import os
+import requests
+import logging
 
 # Carica le variabili d'ambiente
 load_dotenv()
@@ -29,6 +31,8 @@ print(f"Slack Signing Secret: {SLACK_SIGNING_SECRET}")
 import asyncio
 asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
+logger = logging.getLogger(__name__)
+
 class ActionGetCircuitInfo(Action):
     def name(self) -> str:
         return "action_get_circuit_info"
@@ -36,6 +40,10 @@ class ActionGetCircuitInfo(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
+        # Evita esecuzioni multiple controllando l'ultima azione
+        if tracker.latest_action_name == self.name():
+            return []
+            
         # Extract circuit name from entities in the latest message
         latest_message = tracker.latest_message
         entities = latest_message.get('entities', [])
@@ -60,38 +68,76 @@ class ActionGetCircuitInfo(Action):
             return []
 
         try:
-            # Get circuits from API
-            ergast = Ergast(result_type="pandas")
-            circuits_df = ergast.get_circuits(season=2023)
+            # Modifica URL per usare HTTPS invece di HTTP
+            url = "https://ergast.com/api/f1/2023/circuits.json"
             
-            # Normalize circuit names for comparison
+            # Configura la sessione con headers appropriati
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'application/json'
+            })
+            
+            # Fai la richiesta con la sessione configurata
+            response = session.get(url, timeout=15, verify=True)
+            logger.debug(f"Status code: {response.status_code}")
+            logger.debug(f"Response headers: {response.headers}")
+            
+            if response.status_code != 200:
+                logger.error(f"API returned status code {response.status_code}")
+                raise requests.exceptions.RequestException(f"API returned status code {response.status_code}")
+            
+            # Converti la risposta JSON in un formato simile al DataFrame
+            data = response.json()
+            circuits = data['MRData']['CircuitTable']['Circuits']
+            
+            # Cerca il circuito
             circuit_name_lower = circuit_name.lower().strip()
-            circuits_df["circuitName_lower"] = circuits_df["circuitName"].str.lower().str.strip()
+            filtered_circuits = [
+                c for c in circuits 
+                if circuit_name_lower in c['circuitName'].lower()
+            ]
             
-            # Try exact match first
-            filtered_circuit = circuits_df[circuits_df["circuitName_lower"].str.contains(circuit_name_lower, na=False, case=False)]
-            
-            # If no matches found, return list of valid circuits
-            if filtered_circuit.empty:
-                valid_circuits = sorted(circuits_df["circuitName"].tolist())
+            # Se non trova corrispondenze
+            if not filtered_circuits:
+                valid_circuits = sorted(c['circuitName'] for c in circuits)
                 dispatcher.utter_message(
                     text=f"Mi dispiace, ma '{circuit_name}' non è un circuito valido. "
                          f"Ecco i circuiti disponibili: {', '.join(valid_circuits)}."
                 )
                 return []
 
-            # If match found, return circuit info
-            circuit = filtered_circuit.iloc[0]
+            # Se trova una corrispondenza
+            circuit = filtered_circuits[0]
             response = (
-                f"Il circuito '{circuit['circuitName']}' si trova a {circuit['locality']}, {circuit['country']}.\n"
-                f"Coordinate: latitudine {circuit['lat']}, longitudine {circuit['long']}."
+                f"Il circuito '{circuit['circuitName']}' si trova a {circuit['Location']['locality']}, "
+                f"{circuit['Location']['country']}.\n"
+                f"Coordinate: latitudine {circuit['Location']['lat']}, "
+                f"longitudine {circuit['Location']['long']}."
             )
             dispatcher.utter_message(text=response)
             return []
 
+        except requests.exceptions.Timeout:
+            logger.error("Timeout nella richiesta all'API Ergast")
+            dispatcher.utter_message(
+                text="Mi dispiace, il servizio sta impiegando troppo tempo a rispondere. "
+                     "Riprova tra qualche minuto."
+            )
+            return []
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Errore di rete nell'API Ergast: {e}")
+            dispatcher.utter_message(
+                text="Mi dispiace, il servizio è temporaneamente non disponibile. "
+                     "Riprova tra qualche minuto."
+            )
+            return []
         except Exception as e:
-            dispatcher.utter_message(text="Si è verificato un errore nel recupero delle informazioni. Riprova più tardi.")
-            print(f"Errore: {e}")
+            logger.error(f"Errore generico: {e}")
+            dispatcher.utter_message(
+                text="Si è verificato un errore nel recupero delle informazioni. "
+                     "Riprova più tardi."
+            )
             return []
 
 
@@ -139,172 +185,69 @@ class ActionGetEventSchedule(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        latest_message = tracker.latest_message
-        text = latest_message.get('text', '').lower()
-        entities = latest_message.get('entities', [])
-        
-        # Ottieni la lista dei GP validi all'inizio
-        try:
-            schedule = fastf1.get_event_schedule(2023)
-            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
-        except Exception as e:
-            dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
+        # Verifica che l'intent sia quello corretto
+        if tracker.latest_message['intent']['name'] != "ask_event_schedule":
             return []
-        
-        # Reset slots se è una nuova domanda
-        if 'programma' in text or 'orari' in text:
-            gp = None
-            year = None
-        else:
+
+        try:
+            # Verifica l'intent corrente
+            current_intent = tracker.latest_message.get('intent', {}).get('name')
+            
+            # Ottieni gli slot
             gp = tracker.get_slot("gp")
             year = tracker.get_slot("year")
-        
-        # Estrai l'anno dalle entities o dal testo
-        for entity in entities:
-            if entity['entity'] == 'year':
-                year = entity['value']
-                break
-        
-        # Se è una risposta diretta con l'anno
-        if text.isdigit() and len(text) == 4:
-            year = text
-            if gp:  # Se abbiamo già il GP memorizzato
-                return self.get_schedule(dispatcher, gp, year)
-            return [SlotSet("year", year)]
-        
-        if not year and 'nel' in text:
-            try:
-                year = text.split('nel')[1].strip()[:4]
-            except:
-                year = None
-        
-        # Estrai il GP dal testo o dalle entities
-        if not gp:
-            # Prima cerca nelle entities
+            
+            # Controlla le entities del messaggio corrente
+            entities = tracker.latest_message.get('entities', [])
             for entity in entities:
                 if entity['entity'] == 'gp':
                     gp = entity['value']
-                    break
-            
-            # Se non trovato nelle entities, usa il testo completo se è una risposta a utter_ask_gp
-            if not gp and tracker.latest_action_name == "utter_ask_gp":
-                gp = text.strip()
-            
-            # Altrimenti prova a pulire il testo
-            elif not gp:
-                text_clean = text
-                words_to_remove = [
-                    'mostrami', 'gli orari', 'del', 'gp di', 'gran premio di', 'nel',
-                    year if year else '', 'qual è', 'il programma', 'qual', 'è',
-                    '?', '.', '!'  # Rimuovi la punteggiatura
-                ]
-                for remove in words_to_remove:
-                    text_clean = text_clean.replace(remove, '')
-                text_clean = text_clean.strip()
+                if entity['entity'] == 'year':
+                    year = entity['value']
+                    
+            # Se riceviamo solo un numero nel messaggio, è probabilmente l'anno
+            if not entities and tracker.latest_message.get('text', '').strip().isdigit():
+                year = tracker.latest_message.get('text').strip()
+
+            # Verifica se il GP è valido
+            if gp:
+                ergast = Ergast()
+                races = ergast.get_race_schedule(int(year) if year else 2023)
+                available_gps = [race['raceName'] for race in races]
                 
-                if text_clean and not text_clean.isdigit():
-                    gp = text_clean
+                if gp not in available_gps:
+                    message = f"Mi dispiace, ma '{gp}' non è un GP valido. Ecco i GP disponibili: {', '.join(available_gps)}."
+                    dispatcher.utter_message(text=message)
+                    return [SlotSet("gp", None), SlotSet("year", None)]
 
-        # Se non è stato specificato un GP
-        if not gp or gp.isspace():
-            dispatcher.utter_message(
-                text=f"Non hai specificato un GP. "
-                     f"Ecco i GP disponibili: {', '.join(valid_events)}."
-            )
-            return []
+            # Se l'intent è ask_event_schedule, procedi con la logica del programma
+            if current_intent == 'ask_event_schedule':
+                # Se abbiamo il GP ma non l'anno
+                if gp and not year:
+                    dispatcher.utter_message(text="Per quale anno vuoi sapere il programma?")
+                    return [SlotSet("gp", gp)]
+                
+                # Se abbiamo entrambi i valori
+                if gp and year:
+                    schedule = fastf1.get_event(int(year), gp)
+                    if schedule is None:
+                        dispatcher.utter_message(text=f"Non ho trovato il programma per il GP di {gp} nel {year}")
+                        return [SlotSet("gp", None), SlotSet("year", None)]
 
-        # Verifica validità del GP
-        try:
-            # Cerca la corrispondenza migliore
-            gp_lower = gp.lower()
-            matching_events = [event for event in valid_events if gp_lower in event.lower()]
-            
-            if not matching_events:
-                dispatcher.utter_message(
-                    text=f"Mi dispiace, ma '{gp}' non è un GP valido. "
-                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
-                )
-                return []
-            
-            # Usa il nome esatto del GP
-            gp = matching_events[0]
-            
+                    message = f"Programma del GP di {gp} nel {year}:\n"
+                    message += f"Prove Libere 1: {schedule['Session1Date'].strftime('%d %B %Y, %H:%M')}\n"
+                    message += f"Prove Libere 2: {schedule['Session2Date'].strftime('%d %B %Y, %H:%M')}\n"
+                    message += f"Prove Libere 3: {schedule['Session3Date'].strftime('%d %B %Y, %H:%M')}\n"
+                    message += f"Qualifiche: {schedule['Session4Date'].strftime('%d %B %Y, %H:%M')}\n"
+                    message += f"Gara: {schedule['Session5Date'].strftime('%d %B %Y, %H:%M')}"
+
+                    dispatcher.utter_message(text=message)
+                    return [SlotSet("gp", None), SlotSet("year", None)]
+
         except Exception as e:
-            dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
-            return []
-
-        # Se il GP è valido ma non abbiamo l'anno, chiediamo l'anno
-        if not year:
-            dispatcher.utter_message(response="utter_ask_year")
-            return [SlotSet("gp", gp)]
-
-        # Se abbiamo entrambi i valori, procedi con la ricerca
-        return self.get_schedule(dispatcher, gp, year)
-
-    def get_schedule(self, dispatcher: CollectingDispatcher, gp: str, year: str):
-        try:
-            # Verifica che l'anno non sia oltre il 2024
-            if int(year) >= 2025:
-                dispatcher.utter_message(
-                    text=f"Mi dispiace, ma non posso fornirti informazioni per l'anno {year}. "
-                         f"Posso aiutarti solo con gli anni fino al 2024."
-                )
-                return []
-
-            # Get list of available events for that year
-            schedule = fastf1.get_event_schedule(int(year))
-            valid_events = sorted([event['EventName'] for _, event in schedule.iterrows()])
-            
-            # Check if GP exists
-            gp_lower = gp.lower()
-            valid_gp = any(gp_lower in event.lower() for event in valid_events)
-            
-            if not valid_gp:
-                dispatcher.utter_message(
-                    text=f"Mi dispiace, ma '{gp}' non è un GP valido per il {year}. "
-                         f"Ecco i GP disponibili: {', '.join(valid_events)}."
-                )
-                return []
-
-            # Ottieni l'evento per determinare il tipo di weekend
-            event = fastf1.get_event(int(year), gp)
-            
-            # Determina le sessioni disponibili per questo evento
-            available_sessions = []
-            schedule = []
-            
-            session_names = {
-                "FP1": "Prove Libere 1",
-                "FP2": "Prove Libere 2",
-                "FP3": "Prove Libere 3",
-                "Q": "Qualifiche",
-                "S": "Sprint",
-                "SQ": "Sprint Shootout",
-                "R": "Gara"
-            }
-
-            # Prova a caricare ogni possibile sessione
-            for session_type in ["FP1", "FP2", "FP3", "SQ", "Q", "S", "R"]:
-                try:
-                    session = fastf1.get_session(int(year), gp, session_type)
-                    if session and session.date:
-                        schedule.append(f"{session_names.get(session_type, session_type)}: {session.date.strftime('%d %B %Y, %H:%M')}")
-                        available_sessions.append(session_type)
-                except Exception as session_error:
-                    print(f"DEBUG - Sessione {session_type} non disponibile: {str(session_error)}")
-                    continue
-
-            if not schedule:
-                message = f"Non sono riuscito a trovare il programma per il GP di {gp} nel {year}."
-            else:
-                print(f"DEBUG - Sessioni disponibili: {available_sessions}")
-                message = f"Programma del GP di {gp} nel {year}:\n" + "\n".join(schedule)
-
-            dispatcher.utter_message(text=message)
-            
-        except Exception as e:
-            dispatcher.utter_message(text=f"Errore nel recupero del programma: {str(e)}")
-            print(f"Errore generale: {str(e)}")
+            dispatcher.utter_message(text=f"Si è verificato un errore: {str(e)}")
+            return [SlotSet("gp", None), SlotSet("year", None)]
+        
         return []
 
 
@@ -315,7 +258,9 @@ class ActionGetRaceWinner(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        
+        if tracker.latest_message['intent']['name'] != "ask_race_winner":
+            return []
+            
         # Ottieni gli slot esistenti
         gp = None
         year = None
@@ -531,94 +476,101 @@ class ActionGetWeatherInfo(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: dict) -> list:
-        # Get slots and entities
-        latest_message = tracker.latest_message
-        text = latest_message.get('text', '').lower()
-        intent = latest_message.get('intent', {}).get('name')
-        entities = latest_message.get('entities', [])
-        
-        # Ottieni i valori attuali degli slot
-        gp = tracker.get_slot("gp")
-        year = tracker.get_slot("year")
-        
-        print(f"DEBUG - Initial slots: gp={gp}, year={year}")
-        print(f"DEBUG - Latest message: {text}")
-        print(f"DEBUG - Intent: {intent}")
-        print(f"DEBUG - Entities: {entities}")
-        
-        # Salva il valore originale dell'anno
-        original_year = year
-        
-        # Estrai solo le entità pertinenti
-        for entity in entities:
-            if entity['entity'] == 'gp':
-                gp = entity['value']
-                print(f"DEBUG - Found GP entity: {gp}")
-            elif entity['entity'] == 'year':
-                year = entity['value']
-                print(f"DEBUG - Found year entity: {year}")
-        
-        # Ripristina l'anno originale se non è stata trovata una nuova entità year
-        if not any(entity['entity'] == 'year' for entity in entities):
-            year = original_year
-        
-        print(f"DEBUG - After entity extraction: gp={gp}, year={year}")
+        if tracker.latest_message['intent']['name'] != "ask_weather_info":
+            return []
+            
+        try:
+            # Get slots and entities
+            latest_message = tracker.latest_message
+            text = latest_message.get('text', '').lower()
+            intent = latest_message.get('intent', {}).get('name')
+            entities = latest_message.get('entities', [])
+            
+            # Ottieni i valori attuali degli slot
+            gp = tracker.get_slot("gp")
+            year = tracker.get_slot("year")
+            
+            print(f"DEBUG - Initial slots: gp={gp}, year={year}")
+            print(f"DEBUG - Latest message: {text}")
+            print(f"DEBUG - Intent: {intent}")
+            print(f"DEBUG - Entities: {entities}")
+            
+            # Salva il valore originale dell'anno
+            original_year = year
+            
+            # Estrai solo le entità pertinenti
+            for entity in entities:
+                if entity['entity'] == 'gp':
+                    gp = entity['value']
+                    print(f"DEBUG - Found GP entity: {gp}")
+                elif entity['entity'] == 'year':
+                    year = entity['value']
+                    print(f"DEBUG - Found year entity: {year}")
+            
+            # Ripristina l'anno originale se non è stata trovata una nuova entità year
+            if not any(entity['entity'] == 'year' for entity in entities):
+                year = original_year
+            
+            print(f"DEBUG - After entity extraction: gp={gp}, year={year}")
 
-        # Se non abbiamo il GP, chiediamolo
-        if not gp:
-            print("DEBUG - No GP found, asking for it")
-            dispatcher.utter_message(text="Per quale GP vuoi sapere le informazioni meteorologiche?")
-            return [SlotSet("year", year)] if year else []
+            # Se non abbiamo il GP, chiediamolo
+            if not gp:
+                print("DEBUG - No GP found, asking for it")
+                dispatcher.utter_message(text="Per quale GP vuoi sapere le informazioni meteorologiche?")
+                return [SlotSet("year", year)] if year else []
 
-        # Se non abbiamo l'anno, chiediamolo
-        if not year:
-            print("DEBUG - No year found, asking for it")
-            dispatcher.utter_message(text=f"Per quale anno vuoi sapere le condizioni meteo del GP di {gp}?")
-            return [SlotSet("gp", gp)]
+            # Se non abbiamo l'anno, chiediamolo
+            if not year:
+                print("DEBUG - No year found, asking for it")
+                dispatcher.utter_message(text=f"Per quale anno vuoi sapere le condizioni meteo del GP di {gp}?")
+                return [SlotSet("gp", gp)]
 
-        # Se abbiamo entrambi GP e anno, procedi con il recupero dei dati meteo
-        if gp and year:
-            try:
-                print(f"DEBUG - Attempting to get available sessions for GP={gp}, year={year}")
-                available_sessions = self.get_available_sessions(year, gp)
-                print(f"DEBUG - Available sessions: {available_sessions}")
-                
-                if available_sessions:
-                    # Ottieni il riepilogo meteo del weekend
-                    print("DEBUG - Getting weather summary")
-                    weekend_summary = self.get_gp_weather_summary(year, gp)
-                    response = weekend_summary + "\nDETTAGLI PER SESSIONE:\n"
+            # Se abbiamo entrambi GP e anno, procedi con il recupero dei dati meteo
+            if gp and year:
+                try:
+                    print(f"DEBUG - Attempting to get available sessions for GP={gp}, year={year}")
+                    available_sessions = self.get_available_sessions(year, gp)
+                    print(f"DEBUG - Available sessions: {available_sessions}")
+                    
+                    if available_sessions:
+                        # Ottieni il riepilogo meteo del weekend
+                        print("DEBUG - Getting weather summary")
+                        weekend_summary = self.get_gp_weather_summary(year, gp)
+                        response = weekend_summary + "\nDETTAGLI PER SESSIONE:\n"
 
-                    # Ottieni i dati meteo per ogni sessione
-                    for session_name in available_sessions:
-                        try:
-                            session_type = self.get_session_identifier(session_name)
-                            print(f"DEBUG - Processing session {session_name} (type: {session_type})")
-                            session = fastf1.get_session(int(year), gp, session_type)
-                            session.load()
-                            
-                            weather_info = self.get_weather_details(session)
-                            response += f"\n{session_name}:\n{weather_info}\n"
-                            response += "-" * 40 + "\n"
-                            
-                        except Exception as e:
-                            print(f"DEBUG - Error getting weather for session {session_name}: {str(e)}")
-                            response += f"\n{session_name}: Dati meteo non disponibili\n"
-                            response += "-" * 40 + "\n"
+                        # Ottieni i dati meteo per ogni sessione
+                        for session_name in available_sessions:
+                            try:
+                                session_type = self.get_session_identifier(session_name)
+                                print(f"DEBUG - Processing session {session_name} (type: {session_type})")
+                                session = fastf1.get_session(int(year), gp, session_type)
+                                session.load()
+                                
+                                weather_info = self.get_weather_details(session)
+                                response += f"\n{session_name}:\n{weather_info}\n"
+                                response += "-" * 40 + "\n"
+                                
+                            except Exception as e:
+                                print(f"DEBUG - Error getting weather for session {session_name}: {str(e)}")
+                                response += f"\n{session_name}: Dati meteo non disponibili\n"
+                                response += "-" * 40 + "\n"
 
-                    dispatcher.utter_message(text=response)
-                    return [SlotSet("gp", gp), SlotSet("year", year)]
-                else:
-                    print(f"DEBUG - No available sessions found for GP={gp}, year={year}")
-                    dispatcher.utter_message(text=f"Mi dispiace, non trovo sessioni disponibili per il GP di {gp} nel {year}.")
+                        dispatcher.utter_message(text=response)
+                        return [SlotSet("gp", gp), SlotSet("year", year)]
+                    else:
+                        print(f"DEBUG - No available sessions found for GP={gp}, year={year}")
+                        dispatcher.utter_message(text=f"Mi dispiace, non trovo sessioni disponibili per il GP di {gp} nel {year}.")
+                        return []
+
+                except Exception as e:
+                    print(f"DEBUG - General error: {str(e)}")
+                    dispatcher.utter_message(text=f"Mi dispiace, c'è stato un errore nel recupero dei dati meteo.")
                     return []
 
-            except Exception as e:
-                print(f"DEBUG - General error: {str(e)}")
-                dispatcher.utter_message(text=f"Mi dispiace, c'è stato un errore nel recupero dei dati meteo.")
-                return []
-
-        return []
+            return [SlotSet("gp", gp), SlotSet("year", year)]
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return [SlotSet("gp", None), SlotSet("year", None)]
 
     def get_weather_info(self, dispatcher: CollectingDispatcher, gp: str, year: str, session_name: str = None):
         try:
@@ -753,6 +705,10 @@ class ActionGetFastestLap(Action):
         gp = tracker.get_slot("gp")
         year = tracker.get_slot("year")
         
+        # Se l'azione è già stata eseguita per questi slot, non ripetere
+        if tracker.get_slot("fastest_lap_done"):
+            return []
+        
         try:
             year_int = int(year)
             # Ottieni la lista dei GP validi per quell'anno
@@ -792,9 +748,17 @@ class ActionGetFastestLap(Action):
                          f"Ecco i GP disponibili: {', '.join(valid_events)}."
                 )
                 
+            # Alla fine dell'esecuzione, imposta il flag
+            return [SlotSet("gp", None), 
+                    SlotSet("year", None), 
+                    SlotSet("fastest_lap_done", True)]
+                
         except Exception as e:
             print(f"Errore dettagliato: {str(e)}")
             dispatcher.utter_message(text="Mi dispiace, non sono riuscito a trovare le informazioni per questo GP.")
+            return [SlotSet("gp", None), 
+                    SlotSet("year", None), 
+                    SlotSet("fastest_lap_done", True)]
         
         return []
 
@@ -898,8 +862,8 @@ class ActionCompareTelemetry(Action):
 
     def generate_telemetry_comparison(self, year: str, gp: str, driver_1: str, driver_2: str) -> str:
         try:
-            # Disable cache
-            fastf1.Cache.disabled = True
+            print(f"\nDEBUG - Starting telemetry comparison with params:")
+            print(f"Year: {year}, GP: {gp}, Driver 1: {driver_1}, Driver 2: {driver_2}")
             
             # Load session
             session = fastf1.get_session(int(year), gp, 'Q')
@@ -907,28 +871,34 @@ class ActionCompareTelemetry(Action):
             
             # Get list of drivers in the session
             drivers = session.drivers
-            print("\nDEBUG - Available drivers:")
-            for d in drivers:
-                info = session.get_driver(d)
-                print(f"Driver ID: {d}")
-                print(f"Full Name: {info['FirstName']} {info['LastName']}")
-                print(f"Abbreviation: {info['Abbreviation']}")
-                print(f"Team: {info['TeamName']}")
-                print("-" * 40)
+            print(f"\nDEBUG - Drivers type: {type(drivers)}")
+            print(f"DEBUG - Drivers content: {drivers}")
             
+            # Crea un dizionario per mappare sia i cognomi che le abbreviazioni ai numeri dei piloti
             driver_info = {}
-            for d in drivers:
-                info = session.get_driver(d)
-                driver_info[info['LastName']] = d           # es. "Verstappen" -> "33"
-                driver_info[info['Abbreviation']] = d  # es. "VER" -> "33"
+            for driver_number in drivers:
+                info = session.get_driver(driver_number)
+                print(f"\nDEBUG - Driver info for {driver_number}:")
+                print(f"Raw info: {info}")
+                
+                if info is not None:
+                    try:
+                        driver_info[info['LastName']] = driver_number
+                        driver_info[info['Abbreviation']] = driver_number
+                        print(f"Processed: {info['LastName']} / {info['Abbreviation']} -> {driver_number}")
+                    except Exception as e:
+                        print(f"Error processing driver info: {str(e)}")
+                        print(f"Info keys available: {info.keys() if hasattr(info, 'keys') else 'No keys'}")
             
             # Check if both drivers were in the session
             if driver_1 not in driver_info:
-                raise ValueError(f"{driver_1} non ha partecipato a questo GP. Piloti disponibili: {', '.join(sorted(set(info['LastName'] for d in drivers for info in [session.get_driver(d)])))}")
+                available_drivers = sorted(set(info['LastName'] for d in drivers if (info := session.get_driver(d)) is not None))
+                raise ValueError(f"{driver_1} non ha partecipato a questo GP. Piloti disponibili: {', '.join(available_drivers)}")
             if driver_2 not in driver_info:
-                raise ValueError(f"{driver_2} non ha partecipato a questo GP. Piloti disponibili: {', '.join(sorted(set(info['LastName'] for d in drivers for info in [session.get_driver(d)])))}")
+                available_drivers = sorted(set(info['LastName'] for d in drivers if (info := session.get_driver(d)) is not None))
+                raise ValueError(f"{driver_2} non ha partecipato a questo GP. Piloti disponibili: {', '.join(available_drivers)}")
             
-            # Convert names to driver numbers
+            # Il resto del codice rimane invariato
             driver_1_num = driver_info[driver_1]
             driver_2_num = driver_info[driver_2]
             
@@ -1205,6 +1175,62 @@ class ValidateFastestLapForm(FormValidationAction):
         except Exception as e:
             dispatcher.utter_message(text="Si è verificato un errore nella validazione del GP.")
             return {"gp": None}
+
+    def validate_year(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        try:
+            year = int(slot_value)
+            if 1950 <= year <= 2024:
+                return {"year": str(year)}
+            else:
+                dispatcher.utter_message(text=f"Per favore inserisci un anno tra 1950 e 2024.")
+                return {"year": None}
+        except ValueError:
+            dispatcher.utter_message(text="Per favore inserisci un anno valido.")
+            return {"year": None}
+
+class ValidateTelemetryForm(FormValidationAction):
+    def name(self) -> Text:
+        return "validate_telemetry_form"
+
+    def validate_driver_1(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        # Verifica che il pilota sia valido
+        if slot_value:
+            return {"driver_1": slot_value}
+        return {"driver_1": None}
+
+    def validate_driver_2(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        if slot_value:
+            return {"driver_2": slot_value}
+        return {"driver_2": None}
+
+    def validate_gp(
+        self,
+        slot_value: Any,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: DomainDict,
+    ) -> Dict[Text, Any]:
+        if slot_value:
+            return {"gp": slot_value}
+        return {"gp": None}
 
     def validate_year(
         self,

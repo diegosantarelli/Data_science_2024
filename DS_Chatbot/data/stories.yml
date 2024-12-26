@@ -22,6 +22,13 @@ stories:
   - intent: ask_circuit_info
   - action: action_get_circuit_info
 
+- story: informazioni sul circuito con anno fornito
+  steps:
+  - intent: ask_circuit_info
+  - action: action_get_circuit_info
+  - intent: inform
+  - action: action_get_circuit_info
+
 - story: get_event_details
   steps:
   - intent: ask_event_info
@@ -34,6 +41,7 @@ stories:
     - gp
     - year
   - action: action_get_event_schedule
+  - action: action_listen
 
 - story: programma del GP - chiedi anno
   steps:
@@ -45,6 +53,7 @@ stories:
     entities:
     - year
   - action: action_get_event_schedule
+  - action: action_listen
 
 - story: programma del GP - chiedi GP
   steps:
@@ -56,8 +65,9 @@ stories:
     entities:
     - gp
   - action: action_get_event_schedule
+  - action: action_listen
 
-- story: programma del GP - chiedi GP e anno
+- story: programma del GP - nessun parametro
   steps:
   - intent: ask_event_schedule
   - action: utter_ask_gp
@@ -69,6 +79,10 @@ stories:
     entities:
     - year
   - action: action_get_event_schedule
+  - slot_was_set:
+      - gp: null
+      - year: null
+  - action: action_listen
 
 - story: vincitore della gara - domanda completa
   steps:
@@ -110,13 +124,11 @@ stories:
   - intent: ask_weather_info
   - action: utter_ask_gp
   - intent: inform
-    entities:
-    - gp: "Italian Grand Prix"
   - action: utter_ask_year
   - intent: inform
-    entities:
-    - year: "2021"
   - action: action_get_weather_info
+  - active_loop: null
+  - action: action_listen
 
 - story: meteo del GP con slot impostati
   steps:

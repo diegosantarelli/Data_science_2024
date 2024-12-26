@@ -43,8 +43,21 @@
 
 action_endpoint:
   url: "http://localhost:5055/webhook"
+  timeout: 60  # aumenta il timeout a 60 secondi
+
+lock_store:
+  type: "redis"
+  url: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  key_prefix: "lock"
+  socket_timeout: 10
 
 tracker_store:
-  type: SQL
-  dialect: "sqlite"
-  db: "rasa.db"
+  type: "redis"
+  url: "localhost"
+  port: 6379
+  password: ""
+  db: 1
+  key_prefix: "tracker"
