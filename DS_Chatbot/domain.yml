@@ -220,15 +220,17 @@ rules:
 
 responses:
   utter_greet:
-    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto a Silverstone nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n\n📊 Confrontare la telemetria dei piloti\n\nCome posso aiutarti?"
+    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto l'Abu Dhabi Grand Prix nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n   Es: 'Qual è stato il giro più veloce di Verstappen nel GP di Abu Dhabi Grand Prix nel 2023?'\n\n📊 Confrontare la telemetria dei piloti\n   Es: 'Confronta la telemetria di Hamilton e Leclerc nel GP di Silverstone Grand Prix 2022.'\n\n📍 Darti informazioni sui circuiti\n   Es: 'Parlami del circuito di Silverstone.'\n\n🔥 Mostrarti la mappa delle velocità\n   Es: 'Mostrami la mappa delle velocità di Leclerc nel GP di Monaco Grand Prix nel 2022.'\n\nCome posso aiutarti?"
   utter_goodbye:
-    - text: "Arrivederci! A presto! 👋"
+    - text: "Grazie per avermi usato! Se hai altre domande, sono qui. 👋"
+    - text: "Arrivederci! Ci risentiremo! 🏁"
   utter_bot_challenge:
-    - text: "Sono un assistente virtuale per aiutarti con le info sulla Formula 1! 🤖🏎️"
+    - text: "Sono un assistente virtuale per aiutarti con le informazioni sulla Formula 1! 🤖🏎️"
+    - text: "Sì, sono un bot creato per rispondere a tutte le tue domande sulla Formula 1. 🏁"
   utter_ask_year:
-    - text: "Per quale anno vuoi sapere il programma?"
+    - text: "Per quale anno vuoi sapere il programma del GP relativo?"
   utter_ask_gp:
     - text: "Per quale GP vuoi sapere gli orari delle sessioni?"
   utter_start:
-    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto a Silverstone nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n\n📊 Confrontare la telemetria dei piloti\n\nCome posso aiutarti?"
+    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto l'Abu Dhabi Grand Prix nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n   Es: 'Qual è stato il giro più veloce di Verstappen nel GP di Abu Dhabi Grand Prix nel 2023?'\n\n📊 Confrontare la telemetria dei piloti\n   Es: 'Confronta la telemetria di Hamilton e Leclerc nel GP di Silverstone Grand Prix nel 2022.'\n\n📍 Darti informazioni sui circuiti\n   Es: 'Parlami del circuito di Silverstone.'\n\n🔥 Mostrarti la mappa delle velocità\n   Es: 'Mostrami la mappa delle velocità di Leclerc nel GP di Monaco Grand Prix nel 2022.'\n\nCome posso aiutarti?"
 
