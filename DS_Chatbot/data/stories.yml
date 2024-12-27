@@ -40,7 +40,7 @@ stories:
     entities:
     - gp
     - year
-  - action: action_get_event_schedule
+  - action: action_show_session_times
   - action: action_listen
 
 - story: programma del GP - chiedi anno
@@ -52,7 +52,7 @@ stories:
   - intent: inform
     entities:
     - year
-  - action: action_get_event_schedule
+  - action: action_show_session_times
   - action: action_listen
 
 - story: programma del GP - chiedi GP
@@ -64,7 +64,7 @@ stories:
   - intent: inform
     entities:
     - gp
-  - action: action_get_event_schedule
+  - action: action_show_session_times
   - action: action_listen
 
 - story: programma del GP - nessun parametro
@@ -78,7 +78,7 @@ stories:
   - intent: inform
     entities:
     - year
-  - action: action_get_event_schedule
+  - action: action_show_session_times
   - slot_was_set:
       - gp: null
       - year: null

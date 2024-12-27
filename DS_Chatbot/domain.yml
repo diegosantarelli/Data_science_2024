@@ -4,104 +4,15 @@ intents:
   - greet
   - bot_challenge
   - goodbye
-  - ask_event_info
   - ask_circuit_info
   - ask_event_schedule
   - ask_race_winner
   - ask_weather_info
   - ask_fastest_lap
+  - ask_session_times
   - inform
   - compare_drivers_telemetry
   - show_speed_map
-  - stop
-  - chitchat
-  - faq
-
-channels:
-  - telegram
-  - rest
-forms:
-  fastest_lap_form:
-    required_slots:
-      - gp
-      - year
-  event_schedule_form:
-    required_slots:
-      - gp
-      - year
-  telemetry_form:
-    required_slots:
-      - gp
-      - year
-      - driver_1
-      - driver_2
-
-actions:
-  - action_get_event_info
-  - action_get_circuit_info
-  - action_get_event_schedule
-  - action_get_race_winner
-  - action_get_weather_info
-  - action_get_fastest_lap
-  - action_ask_missing_gp
-  - action_ask_missing_year
-  - utter_ask_year
-  - action_compare_telemetry
-  - action_show_speed_map
-  - utter_ask_gp
-  - action_reset_slots
-  - validate_fastest_lap_form
-
-responses:
-
-  utter_greet:
-    - text: "Ciao! Sono il tuo assistente F1. Come posso aiutarti?"
-    - text: "Ciao! Come posso aiutarti con le informazioni sulla Formula 1? 😊"
-    - text: "Buongiorno! Chiedimi qualcosa sulla Formula 1! 😊"
-    - text: "Ehi! Posso esserti utile per le informazioni sulla Formula 1? 😊"
-
-  utter_bot_challenge:
-    - text: "Sono un assistente virtuale per aiutarti con le info sulla Formula 1! 🤖🏎️"
-    - text: "Sono un bot con molte informazioni sulla Formula 1 pronte per te! 🤖🏎️"
-
-  utter_goodbye:
-    - text: "Arrivederci! A presto! 👋"
-    - text: "Ciao! Torna presto se hai bisogno. 😊"
-    - text: "Alla prossima! 👋"
-
-  utter_circuit_info:
-    - text: "Ecco alcune informazioni sul circuito di {gp}:"
-    - text: "Parliamo del circuito di {gp}, dammi un secondo..."
-
-  utter_ask_driver:
-  - text: "Per quale pilota vuoi sapere le informazioni?"
-
-  utter_ask_gp:
-    - text: "Per quale GP vuoi sapere il programma delle sessioni?"
-
-  utter_ask_year:
-    - text: "Per quale anno vuoi sapere il programma?"
-
-  utter_stop:
-    - text: "Va bene, interrompo la richiesta. Posso aiutarti con qualcos'altro?"
-
-  utter_chitchat/come_stai:
-    - text: "Sto bene, grazie! Pronto ad aiutarti con la Formula 1!"
-    - text: "Tutto bene, grazie della domanda! Come posso aiutarti?"
-
-  utter_chitchat/chi_sei:
-    - text: "Sono un assistente specializzato in Formula 1, pronto ad aiutarti!"
-    - text: "Sono il tuo assistente F1, posso aiutarti con informazioni sui circuiti e le gare!"
-
-  utter_faq/regole:
-    - text: "La Formula 1 ha un complesso set di regole. Quale aspetto specifico ti interessa?"
-
-  utter_faq/punti:
-    - text: "Nel sistema di punteggio attuale: 1° posto: 25 punti, 2°: 18 punti, 3°: 15 punti, e così via."
-
-  utter_ask_more:
-    - text: "C'è altro che vuoi sapere?"
-    - text: "Posso aiutarti con qualcos'altro?"
 
 entities:
   - gp
@@ -114,27 +25,18 @@ entities:
 slots:
   gp:
     type: text
-    influence_conversation: true
     mappings:
-    - type: from_entity
-      entity: gp
-  
+      - type: from_entity
+        entity: gp
   year:
     type: text
-    influence_conversation: true
     mappings:
-    - type: from_entity
-      entity: year
-
-  session:
-    type: text
-    mappings:
-    - type: from_entity
-      entity: session
-    - type: from_text
-      conditions:
-      - active_loop: null
-        requested_slot: session
+      - type: from_entity
+        entity: year
+      - type: from_text
+        conditions:
+        - active_loop: null
+          requested_slot: year
   gp_valid:
     type: bool
     influence_conversation: true
@@ -176,6 +78,38 @@ slots:
     mappings:
     - type: custom
 
+  session:
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: session
+    - type: from_text
+
+actions:
+  - action_get_circuit_info
+  - action_get_event_info
+  - action_get_race_winner
+  - action_get_weather_info
+  - action_get_fastest_lap
+  - action_compare_telemetry
+  - action_show_speed_map
+  - action_reset_slots
+  - action_show_session_times
+
+forms:
+  fastest_lap_form:
+    required_slots:
+      - driver
+      - gp
+      - year
+  telemetry_form:
+    required_slots:
+      - gp
+      - year
+      - driver_1
+      - driver_2
+
 rules:
   - rule: Ask circuit info
     steps:
@@ -186,18 +120,7 @@ rules:
   - rule: Ask event schedule
     steps:
     - intent: ask_event_schedule
-    - action: event_schedule_form
-    - active_loop: event_schedule_form
-
-  - rule: Submit event schedule form
-    condition:
-    - active_loop: event_schedule_form
-    steps:
-    - action: event_schedule_form
-    - active_loop: null
-    - slot_was_set:
-        - requested_slot: null
-    - action: action_get_event_schedule
+    - action: action_show_session_times
     - action: action_listen
 
   - rule: Get event schedule with missing year
@@ -211,7 +134,7 @@ rules:
     - intent: inform
       entities:
       - year
-    - action: action_get_event_schedule
+    - action: action_show_session_times
     - action: action_listen
 
   - rule: Get event schedule with missing GP
@@ -225,15 +148,8 @@ rules:
     - intent: inform
       entities:
       - gp
-    - action: action_get_event_schedule
+    - action: action_show_session_times
     - action: action_listen
-
-  - rule: Get event schedule complete
-    condition:
-    - active_loop: null
-    steps:
-    - intent: ask_event_schedule
-    - action: action_get_event_schedule
 
   - rule: Activate telemetry form
     steps:
@@ -252,6 +168,64 @@ rules:
     - action: action_compare_telemetry
     - action: action_listen
 
+  - rule: Ask session times
+    steps:
+    - intent: ask_session_times
+    - action: action_show_session_times
+    - action: action_listen
 
+  - rule: Handle session times year response
+    condition:
+    - active_loop: null
+    - slot_was_set:
+        - gp: any
+    - slot_was_set:
+        - requested_slot: year
+    steps:
+    - intent: inform
+    - action: action_show_session_times
+    - action: action_reset_slots
+    - action: action_listen
 
+  - rule: Handle weather info request
+    steps:
+    - intent: ask_weather_info
+    - action: action_get_weather_info
+    - action: action_listen
+
+  - rule: Ask weather info
+    steps:
+    - intent: ask_weather_info
+    - action: action_get_weather_info
+    - action: action_listen
+
+  - rule: Ask fastest lap
+    steps:
+    - intent: ask_fastest_lap
+    - action: fastest_lap_form
+    - active_loop: fastest_lap_form
+
+  - rule: Submit fastest lap form
+    condition:
+    - active_loop: fastest_lap_form
+    steps:
+    - action: fastest_lap_form
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: null
+    - action: action_get_fastest_lap
+    - action: action_reset_slots
+    - action: action_listen
+
+responses:
+  utter_greet:
+    - text: "Ciao! Sono il tuo assistente F1. Come posso aiutarti?"
+  utter_goodbye:
+    - text: "Arrivederci! A presto! 👋"
+  utter_bot_challenge:
+    - text: "Sono un assistente virtuale per aiutarti con le info sulla Formula 1! 🤖🏎️"
+  utter_ask_year:
+    - text: "Per quale anno vuoi sapere il programma?"
+  utter_ask_gp:
+    - text: "Per quale GP vuoi sapere gli orari delle sessioni?"
 
