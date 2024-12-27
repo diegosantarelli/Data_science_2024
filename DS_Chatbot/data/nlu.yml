@@ -2,6 +2,26 @@ version: "3.1"
 
 nlu:
 
+- intent: start
+  examples: |
+    - /start
+    - /starc
+    - Start
+    - /START
+    - /sTaRt
+    - start
+    - START
+    - /Start
+    - /s
+    - /ST
+    - /inizia
+    - /comincia
+    - /via
+    - inizia
+    - comincia
+    - avvia
+    - /avvia
+
 - intent: greet
   examples: |
     - hey
@@ -18,6 +38,21 @@ nlu:
     - come va
     - hey come va
     - ciao come stai
+    - Ehilà
+    - Hola
+    - Hi
+    - Hello
+    - Ciao F1Bot
+    - Posso farti delle domande?
+    - Mi puoi aiutare?
+    - Vorrei delle informazioni
+    - help
+    - aiuto
+    - info
+    - cosa sai fare?
+    - quali sono le tue funzionalità?
+    - come posso usarti?
+    - mostrami i comandi disponibili
 
 - intent: bot_challenge
   examples: |
@@ -38,6 +73,12 @@ nlu:
     - addio
     - buona giornata
     - buona serata
+    - Devo andare, grazie
+    - Grazie, ci sentiamo dopo
+    - Grazie di tutto
+    - Bye
+    - A più tardi
+    - Ti saluto
 
 - intent: ask_circuit_info
   examples: |
@@ -93,6 +134,15 @@ nlu:
     - Che condizioni meteo c'erano al [Bahrain](gp)
     - Com'era il meteo del [Monaco](gp) nel [2023](year)
     - Che tempo faceva durante il [Bahrain](gp) nel [2022](year)
+    - Com'era il meteo del [Monaco Grand Prix](gp) nel [2023](year)
+    - Che tempo faceva a [Monza](gp) nel [2022](year)?
+    - Condizioni meteo durante il GP di [Silverstone](gp) [2023](year)
+    - C'era pioggia a [Spa](gp) nel [2021](year)?
+    - Temperatura durante la gara di [Singapore](gp) [2023](year)
+    - Che tempo ha fatto a [Las Vegas](gp) nel [2023](year)?
+    - Com'era il tempo a [Miami](gp) nel [2023](year)?
+    - Ha piovuto durante il GP di [Barcelona](gp) nel [2023](year)?
+    - Che temperatura c'era a [Zandvoort](gp) nel [2022](year)?
 
 - intent: ask_fastest_lap
   examples: |
@@ -164,6 +214,20 @@ nlu:
     - A che ora sono le sessioni del [Italian Grand Prix](gp)
     - Orari delle sessioni del [British Grand Prix](gp)
     - Programma del weekend del [Dutch Grand Prix](gp)
+    - Orari delle sessioni del GP di [Monaco](gp)
+    - A che ora sono le sessioni del GP di [Monza](gp)?
+    - Quando sono le prove libere del GP di [Silverstone](gp)?
+    - Programma del weekend di gara di [Spa](gp)
+    - Orari del GP di [Melbourne](gp)
+    - Quando si corre a [Singapore](gp)?
+    - Mi dai gli orari del GP di [Las Vegas](gp)?
+    - Vorrei sapere gli orari delle sessioni di [Baku](gp)
+    - Quando sono le qualifiche di [Miami](gp)?
+    - A che ora è la gara di [Barcelona](gp)?
+    - Dammi il programma completo di [Zandvoort](gp)
+    - Orari del weekend di [Suzuka](gp)
+    - Quando iniziano le prove libere a [Montreal](gp)?
+    - Mi servono gli orari di [Abu Dhabi](gp)
 
 
 

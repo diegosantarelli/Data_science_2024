@@ -1,6 +1,7 @@
 version: "3.1"
 
 intents:
+  - start
   - greet
   - bot_challenge
   - goodbye
@@ -219,7 +220,7 @@ rules:
 
 responses:
   utter_greet:
-    - text: "Ciao! Sono il tuo assistente F1. Come posso aiutarti?"
+    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto a Silverstone nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n\n📊 Confrontare la telemetria dei piloti\n\nCome posso aiutarti?"
   utter_goodbye:
     - text: "Arrivederci! A presto! 👋"
   utter_bot_challenge:
@@ -228,4 +229,6 @@ responses:
     - text: "Per quale anno vuoi sapere il programma?"
   utter_ask_gp:
     - text: "Per quale GP vuoi sapere gli orari delle sessioni?"
+  utter_start:
+    - text: "Ciao! Sono il tuo assistente F1. 🏎️\n\nEcco cosa posso fare per te:\n\n🏁 Mostrarti gli orari delle sessioni di un GP\n   Es: 'Dammi il programma del GP di Monaco 2023'\n\n🌤️ Dirti le condizioni meteo di un GP\n   Es: 'Com'era il meteo a Monza nel 2022?'\n\n🏆 Dirti chi ha vinto un GP\n   Es: 'Chi ha vinto a Silverstone nel 2023?'\n\n⏱️ Mostrarti i giri più veloci\n\n📊 Confrontare la telemetria dei piloti\n\nCome posso aiutarti?"
 

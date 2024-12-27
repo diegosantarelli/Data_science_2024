@@ -185,5 +185,10 @@ rules:
     - slot_was_set:
         - requested_slot: gp
 
+  - rule: Start command
+    steps:
+    - intent: start
+    - action: utter_start
+
 
 
